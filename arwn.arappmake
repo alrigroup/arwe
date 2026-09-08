@@ -2,7 +2,7 @@ ALRIGROUP@APPMAKE
 {
   "name": "arwn",
   "bin": "arwn.arapp",
-  "version": "0.2.0",
+  "version": "0.2.01",
   "runtime": "native",
   "entry": "arwn_build",
   "platforms": {
@@ -35,5 +35,11 @@ ALRIGROUP@APPMAKE
   "files": [
     "arwn_build",
     "arwn.h"
+  ],
+  "description": "Runtime Nativo Web e Servidor de Containers .arweb",
+  "commands": [
+    "status",
+    "routes",
+    "ping"
   ]
 }
