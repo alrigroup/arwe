@@ -387,7 +387,7 @@ static void handle_client_conn(arwn_server_t *s, int fd) {
         }
 
         if (!header_complete) {
-            char hbuf[1024];
+            char hbuf[4096];
             size_t hlen = build_head(hbuf, sizeof(hbuf), 400, "Bad Request",
                                      "text/plain", 11, ARWN_CACHE_NO_STORE, 0, NULL);
             send_all(fd, hbuf, hlen);
@@ -407,7 +407,7 @@ static void handle_client_conn(arwn_server_t *s, int fd) {
         /* Method check */
         int is_head = arwn_http_method_is(&req, "HEAD");
         if (!arwn_http_method_is(&req, "GET") && !is_head) {
-            char hbuf[1024];
+            char hbuf[4096];
             size_t hlen = build_head(hbuf, sizeof(hbuf), 405, "Method Not Allowed",
                                      "text/plain", 18, ARWN_CACHE_NO_STORE, keep_alive, NULL);
             send_all(fd, hbuf, hlen);
@@ -437,7 +437,7 @@ static void handle_client_conn(arwn_server_t *s, int fd) {
         }
         if (!r) {
             if (s->has_notfound_route && s->notfound_route.data) {
-                char hbuf[1024];
+                char hbuf[4096];
                 size_t hlen = build_head(hbuf, sizeof(hbuf), 404, "Not Found",
                                          s->notfound_route.content_type,
                                          s->notfound_route.size,
@@ -450,7 +450,7 @@ static void handle_client_conn(arwn_server_t *s, int fd) {
                     }
                 }
             } else {
-                char hbuf[1024];
+                char hbuf[4096];
                 size_t hlen = build_head(hbuf, sizeof(hbuf), 404, "Not Found",
                                          "text/plain", 9, ARWN_CACHE_NO_STORE, keep_alive, NULL);
                 send_all(fd, hbuf, hlen);
@@ -479,7 +479,7 @@ static void handle_client_conn(arwn_server_t *s, int fd) {
             }
         }
 
-        char hbuf[1024];
+        char hbuf[4096];
         if (not_modified) {
             size_t hlen = build_head(hbuf, sizeof(hbuf), 304, "Not Modified",
                                      "text/plain", 0, ARWN_CACHE_NO_CACHE,
@@ -599,7 +599,7 @@ int arwn_server_run(arwn_server_t *s, const char *bind, uint16_t port) {
         } else {
             /* Fila cheia (Anti-DoS / Load Shedding) */
             ar_mutex_unlock(s->queue_mutex);
-            char hbuf[256];
+            char hbuf[4096];
             size_t hlen = build_head(hbuf, sizeof(hbuf), 503, "Service Unavailable",
                                      "text/plain", 19, ARWN_CACHE_NO_STORE, 0, NULL);
             ar_socket_send(cfd, hbuf, hlen);
