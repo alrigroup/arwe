@@ -28,7 +28,7 @@
 ## 2. Directory Structure & Key Files
 
 ```
-src-arapps/arwe/
+arwe/
 ├── arwe.arappmake           # ALRIOS package manifest & compilation rules
 ├── DOCS.md                   # Complete 360+ lines technical reference manual
 ├── README.md                 # Public overview & operational guide
