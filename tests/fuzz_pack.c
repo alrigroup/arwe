@@ -11,9 +11,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "arwn_pack.h"
+#include "arwe_pack.h"
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    arwn_pack_validate(data, size);
+    arwe_pack_validate(data, size);
     return 0;
 }

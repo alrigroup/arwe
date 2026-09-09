@@ -6,7 +6,7 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-/* arwn_build — CLI da ARWN (Fase 0/1):
+/* arwe_build — CLI da ARWE (Fase 0/1):
      init <dir> [--framework vanilla|react|vue]
      build <dir> [--out <outdir>]
      config --validate <dir>
@@ -21,11 +21,11 @@
 #include <unistd.h>
 #endif
 
-#include "arwn.h"
+#include "arwe.h"
 #include "aros_hal.h"
 
 static const char *VANILLA_CONFIG =
-    "# Configuracao do app ARWN\n"
+    "# Configuracao do app ARWE\n"
     "[app]\n"
     "name=meuapp\n"
     "port=3001\n"
@@ -58,20 +58,20 @@ static const char *VANILLA_HTML =
     "  <title>meuapp</title>\n"
     "</head>\n"
     "<body>\n"
-    "  <h1 id=\"app\">ARWN</h1>\n"
+    "  <h1 id=\"app\">ARWE</h1>\n"
     "  <script src=\"./main.js\"></script>\n"
     "</body>\n"
     "</html>\n";
 
 static const char *VANILLA_JS =
-    "// app ARWN - front-end JS (bundled by esbuild)\n"
-    "window.ARWN && ARWN.ready(function (bridge) {\n"
+    "// app ARWE - front-end JS (bundled by esbuild)\n"
+    "window.ARWE && ARWE.ready(function (bridge) {\n"
     "  const el = document.getElementById('app');\n"
-    "  if (el) el.textContent = 'ARWN pronto (' + bridge.version + ')';\n"
+    "  if (el) el.textContent = 'ARWE pronto (' + bridge.version + ')';\n"
     "});\n";
 
 static const char *REACT_CONFIG =
-    "# Configuracao do app ARWN (React)\n"
+    "# Configuracao do app ARWE (React)\n"
     "[app]\n"
     "name=meuapp-react\n"
     "port=3001\n"
@@ -116,18 +116,18 @@ static const char *REACT_TSX =
     "export function App() {\n"
     "  const [status, setStatus] = useState('conectando...');\n"
     "  useEffect(() => {\n"
-    "    if (window.ARWN) {\n"
-    "      window.ARWN.ready((bridge) => setStatus('ARWN pronto (' + bridge.version + ')'));\n"
+    "    if (window.ARWE) {\n"
+    "      window.ARWE.ready((bridge) => setStatus('ARWE pronto (' + bridge.version + ')'));\n"
     "    }\n"
     "  }, []);\n"
-    "  return <h1>ARWN React: {status}</h1>;\n"
+    "  return <h1>ARWE React: {status}</h1>;\n"
     "}\n"
     "\n"
     "const root = document.getElementById('root');\n"
     "if (root) ReactDOM.createRoot(root).render(<App />);\n";
 
 static const char *VUE_CONFIG =
-    "# Configuracao do app ARWN (Vue)\n"
+    "# Configuracao do app ARWE (Vue)\n"
     "[app]\n"
     "name=meuapp-vue\n"
     "port=3001\n"
@@ -173,15 +173,15 @@ static const char *VUE_MAIN_TS =
 
 static const char *VUE_APP =
     "<template>\n"
-    "  <h1>ARWN Vue: {{ status }}</h1>\n"
+    "  <h1>ARWE Vue: {{ status }}</h1>\n"
     "</template>\n"
     "<script setup lang=\"ts\">\n"
     "import { ref, onMounted } from 'vue';\n"
     "const status = ref('conectando...');\n"
     "onMounted(() => {\n"
-    "  if (window.ARWN) {\n"
-    "    window.ARWN.ready((bridge: any) => {\n"
-    "      status.value = 'ARWN pronto (' + bridge.version + ')';\n"
+    "  if (window.ARWE) {\n"
+    "    window.ARWE.ready((bridge: any) => {\n"
+    "      status.value = 'ARWE pronto (' + bridge.version + ')';\n"
     "    });\n"
     "  }\n"
     "});\n"
@@ -189,12 +189,12 @@ static const char *VUE_APP =
 
 static void usage(void) {
     printf(
-        "arwn_build - ARWN builder CLI\n"
+        "arwe_build - ARWE builder CLI\n"
         "Usage:\n"
-        "  arwn_build init <dir> [--framework vanilla|react|vue]\n"
-        "  arwn_build build <dir>\n"
-        "  arwn_build serve <dir>\n"
-        "  arwn_build config --validate <dir>\n");
+        "  arwe_build init <dir> [--framework vanilla|react|vue]\n"
+        "  arwe_build build <dir>\n"
+        "  arwe_build serve <dir>\n"
+        "  arwe_build config --validate <dir>\n");
 }
 
 static int write_file(const char *path, const char *content) {
@@ -215,7 +215,7 @@ static int ensure_dir(const char *path) {
 
 static int cmd_init(const char *dir, const char *framework) {
     char cfg[1300];
-    snprintf(cfg, sizeof(cfg), "%s/config.arwn", dir);
+    snprintf(cfg, sizeof(cfg), "%s/config.arwe", dir);
     char web[1300];
     snprintf(web, sizeof(web), "%s/web", dir);
     char web_src[1300];
@@ -237,7 +237,7 @@ static int cmd_init(const char *dir, const char *framework) {
         write_file(cfg, REACT_CONFIG);
         write_file(html, REACT_HTML);
         write_file(tsx, REACT_TSX);
-        printf("ARWN app scaffolded in %s (react)\n", dir);
+        printf("ARWE app scaffolded in %s (react)\n", dir);
     } else if (framework && strcmp(framework, "vue") == 0) {
         if (ensure_dir(web_src) != 0) return 1;
         char main_ts[1300];
@@ -248,40 +248,40 @@ static int cmd_init(const char *dir, const char *framework) {
         write_file(html, VUE_HTML);
         write_file(main_ts, VUE_MAIN_TS);
         write_file(app_vue, VUE_APP);
-        printf("ARWN app scaffolded in %s (vue)\n", dir);
+        printf("ARWE app scaffolded in %s (vue)\n", dir);
     } else {
         char js[1300];
         snprintf(js, sizeof(js), "%s/web/main.js", dir);
         write_file(cfg, VANILLA_CONFIG);
         write_file(html, VANILLA_HTML);
         write_file(js, VANILLA_JS);
-        printf("ARWN app scaffolded in %s (vanilla)\n", dir);
+        printf("ARWE app scaffolded in %s (vanilla)\n", dir);
     }
 
     return 0;
 }
 
 static int cmd_build(const char *dir, const char *out_dir) {
-    arwn_app_t *app = arwn_app_new("app");
+    arwe_app_t *app = arwe_app_new("app");
     if (!app) return 1;
 
     char cfg[1300];
-    snprintf(cfg, sizeof(cfg), "%s/config.arwn", dir);
-    if (arwn_config_load(app, cfg) != 0) {
-        printf("config error: %s\n", arwn_config_last_error(app));
-        arwn_app_free(app);
+    snprintf(cfg, sizeof(cfg), "%s/config.arwe", dir);
+    if (arwe_config_load(app, cfg) != 0) {
+        printf("config error: %s\n", arwe_config_last_error(app));
+        arwe_app_free(app);
         return 1;
     }
-    printf("[arwn] config ok: %d unit(s)\n", arwn_config_unit_count(app));
+    printf("[arwe] config ok: %d unit(s)\n", arwe_config_unit_count(app));
 
-    if (arwn_builder_execute_out(app, out_dir) != 0) {
-        printf("[arwn] build failed\n");
-        arwn_app_free(app);
+    if (arwe_builder_execute_out(app, out_dir) != 0) {
+        printf("[arwe] build failed\n");
+        arwe_app_free(app);
         return 1;
     }
 
-    arwn_app_free(app);
-    printf("[arwn] build done\n");
+    arwe_app_free(app);
+    printf("[arwe] build done\n");
     return 0;
 }
 
@@ -307,14 +307,14 @@ static int cmd_serve(const char *dir) {
     snprintf(target_dir, sizeof(target_dir), "%s", dir ? dir : ".");
 
     char cfg[1300];
-    snprintf(cfg, sizeof(cfg), "%s/config.arwn", target_dir);
+    snprintf(cfg, sizeof(cfg), "%s/config.arwe", target_dir);
 
-    /* If config.arwn not in target_dir, check next to executable */
+    /* If config.arwe not in target_dir, check next to executable */
     FILE *chk = fopen(cfg, "rb");
     if (!chk) {
         char exe_dir[1024];
         if (get_exe_dir(exe_dir, sizeof(exe_dir)) == 0) {
-            snprintf(cfg, sizeof(cfg), "%s/config.arwn", exe_dir);
+            snprintf(cfg, sizeof(cfg), "%s/config.arwe", exe_dir);
             FILE *chk2 = fopen(cfg, "rb");
             if (chk2) {
                 fclose(chk2);
@@ -325,41 +325,41 @@ static int cmd_serve(const char *dir) {
         fclose(chk);
     }
 
-    arwn_app_t *app = arwn_app_new(target_dir);
+    arwe_app_t *app = arwe_app_new(target_dir);
     if (!app) return 1;
 
-    if (arwn_config_load(app, cfg) != 0) {
-        printf("config error: %s\n", arwn_config_last_error(app));
-        arwn_app_free(app);
+    if (arwe_config_load(app, cfg) != 0) {
+        printf("config error: %s\n", arwe_config_last_error(app));
+        arwe_app_free(app);
         return 1;
     }
-    printf("[arwn] config ok: %d unit(s)\n", arwn_config_unit_count(app));
+    printf("[arwe] config ok: %d unit(s)\n", arwe_config_unit_count(app));
 
-    int rc = arwn_mount(app);
-    arwn_app_free(app);
+    int rc = arwe_mount(app);
+    arwe_app_free(app);
     return rc;
 }
 
 static int cmd_config_validate(const char *dir) {
-    arwn_app_t *app = arwn_app_new("app");
+    arwe_app_t *app = arwe_app_new("app");
     if (!app) return 1;
 
     char cfg[1300];
-    snprintf(cfg, sizeof(cfg), "%s/config.arwn", dir);
-    if (arwn_config_load(app, cfg) != 0) {
-        printf("config INVALID: %s\n", arwn_config_last_error(app));
-        arwn_app_free(app);
+    snprintf(cfg, sizeof(cfg), "%s/config.arwe", dir);
+    if (arwe_config_load(app, cfg) != 0) {
+        printf("config INVALID: %s\n", arwe_config_last_error(app));
+        arwe_app_free(app);
         return 1;
     }
 
-    printf("config VALID: %d unit(s)\n", arwn_config_unit_count(app));
-    for (int i = 0; i < arwn_config_unit_count(app); i++) {
-        const arwn_unit_t *u = arwn_config_unit(app, i);
+    printf("config VALID: %d unit(s)\n", arwe_config_unit_count(app));
+    for (int i = 0; i < arwe_config_unit_count(app); i++) {
+        const arwe_unit_t *u = arwe_config_unit(app, i);
         printf("  unit %s: source=%s entry=%s langs=%s\n",
                u->name, u->source, u->entry,
                u->lang_count > 0 ? u->langs[0] : "(none)");
     }
-    arwn_app_free(app);
+    arwe_app_free(app);
     return 0;
 }
 

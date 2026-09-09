@@ -6,7 +6,7 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#include "arwn_config.h"
+#include "arwe_config.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -59,7 +59,7 @@ static int parse_int(const char *s, size_t len, int def, int *ok) {
     return (int)v;
 }
 
-static void set_error(arwn_cfg_t *cfg, const char *msg) {
+static void set_error(arwe_cfg_t *cfg, const char *msg) {
     if (!cfg || !msg) return;
     size_t n = strlen(msg);
     if (n >= sizeof(cfg->error)) n = sizeof(cfg->error) - 1;
@@ -67,7 +67,7 @@ static void set_error(arwn_cfg_t *cfg, const char *msg) {
     cfg->error[n] = '\0';
 }
 
-static void set_error_fmt(arwn_cfg_t *cfg, const char *fmt, int line) {
+static void set_error_fmt(arwe_cfg_t *cfg, const char *fmt, int line) {
     if (!cfg) return;
     snprintf(cfg->error, sizeof(cfg->error), fmt, line);
 }
@@ -76,16 +76,16 @@ static void set_error_fmt(arwn_cfg_t *cfg, const char *fmt, int line) {
 /* Parse principal                                                      */
 /* ------------------------------------------------------------------ */
 
-int arwn_cfg_parse(arwn_cfg_t *cfg, const char *buf, size_t len) {
+int arwe_cfg_parse(arwe_cfg_t *cfg, const char *buf, size_t len) {
     if (!cfg || !buf) return -1;
     memset(cfg, 0, sizeof(*cfg));
 
-    if (len > ARWN_CFG_MAX_FILE) {
-        set_error(cfg, "config.arwn exceeds ARWN_CFG_MAX_FILE");
+    if (len > ARWE_CFG_MAX_FILE) {
+        set_error(cfg, "config.arwe exceeds ARWE_CFG_MAX_FILE");
         return -1;
     }
 
-    char section[ARWN_CFG_SECT_MAX + 1] = {0};
+    char section[ARWE_CFG_SECT_MAX + 1] = {0};
     const char *p = buf;
     const char *end = buf + len;
     int line_no = 0;
@@ -111,7 +111,7 @@ int arwn_cfg_parse(arwn_cfg_t *cfg, const char *buf, size_t len) {
                     return -1;
                 }
                 size_t slen = (size_t)(re - rs);
-                if (slen > ARWN_CFG_SECT_MAX) {
+                if (slen > ARWE_CFG_SECT_MAX) {
                     set_error_fmt(cfg, "config line %d: section name too long", line_no);
                     return -1;
                 }
@@ -153,21 +153,21 @@ int arwn_cfg_parse(arwn_cfg_t *cfg, const char *buf, size_t len) {
                     set_error_fmt(cfg, "config line %d: empty key", line_no);
                     return -1;
                 }
-                if ((size_t)(ke - ks) > ARWN_CFG_KEY_MAX) {
+                if ((size_t)(ke - ks) > ARWE_CFG_KEY_MAX) {
                     set_error_fmt(cfg, "config line %d: key too long", line_no);
                     return -1;
                 }
-                if ((size_t)(ve - vs) > ARWN_CFG_VAL_MAX) {
+                if ((size_t)(ve - vs) > ARWE_CFG_VAL_MAX) {
                     set_error_fmt(cfg, "config line %d: value too long", line_no);
                     return -1;
                 }
 
-                if (cfg->count >= ARWN_CFG_MAX_KEYS) {
+                if (cfg->count >= ARWE_CFG_MAX_KEYS) {
                     set_error_fmt(cfg, "config line %d: too many keys", line_no);
                     return -1;
                 }
 
-                arwn_cfg_entry_t *e = &cfg->entries[cfg->count++];
+                arwe_cfg_entry_t *e = &cfg->entries[cfg->count++];
                 size_t slen = strlen(section);
                 if (slen > 0) {
                     memcpy(e->section, section, slen);
@@ -192,10 +192,10 @@ int arwn_cfg_parse(arwn_cfg_t *cfg, const char *buf, size_t len) {
 /* Lookup (varredura linear pequena, tabela estática)                  */
 /* ------------------------------------------------------------------ */
 
-const char *arwn_cfg_find(const arwn_cfg_t *cfg, const char *section, const char *key) {
+const char *arwe_cfg_find(const arwe_cfg_t *cfg, const char *section, const char *key) {
     if (!cfg || !key) return NULL;
     for (int i = 0; i < cfg->count; i++) {
-        const arwn_cfg_entry_t *e = &cfg->entries[i];
+        const arwe_cfg_entry_t *e = &cfg->entries[i];
         int sect_ok = (section == NULL || section[0] == '\0' || e->section[0] == '\0')
                           ? (section == NULL || section[0] == '\0')
                           : (strcmp(e->section, section) == 0);
@@ -205,24 +205,24 @@ const char *arwn_cfg_find(const arwn_cfg_t *cfg, const char *section, const char
     return NULL;
 }
 
-const char *arwn_cfg_find_def(const arwn_cfg_t *cfg, const char *section,
+const char *arwe_cfg_find_def(const arwe_cfg_t *cfg, const char *section,
                               const char *key, const char *def) {
-    const char *v = arwn_cfg_find(cfg, section, key);
+    const char *v = arwe_cfg_find(cfg, section, key);
     return v ? v : (def ? def : "");
 }
 
-int arwn_cfg_find_int(const arwn_cfg_t *cfg, const char *section, const char *key,
+int arwe_cfg_find_int(const arwe_cfg_t *cfg, const char *section, const char *key,
                       int def) {
-    const char *v = arwn_cfg_find(cfg, section, key);
+    const char *v = arwe_cfg_find(cfg, section, key);
     if (!v) return def;
     int ok = 0;
     int r = parse_int(v, strlen(v), def, &ok);
     return ok ? r : def;
 }
 
-int arwn_cfg_find_bool(const arwn_cfg_t *cfg, const char *section, const char *key,
+int arwe_cfg_find_bool(const arwe_cfg_t *cfg, const char *section, const char *key,
                        int def) {
-    const char *v = arwn_cfg_find(cfg, section, key);
+    const char *v = arwe_cfg_find(cfg, section, key);
     if (!v) return def;
     if (strcmp(v, "yes") == 0 || strcmp(v, "true") == 0 || strcmp(v, "1") == 0) return 1;
     if (strcmp(v, "no") == 0 || strcmp(v, "false") == 0 || strcmp(v, "0") == 0) return 0;

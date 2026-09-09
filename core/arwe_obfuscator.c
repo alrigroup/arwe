@@ -6,7 +6,7 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#include "arwn_obfuscator.h"
+#include "arwe_obfuscator.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,16 +36,16 @@ static char *ensure_cap(char *buf, size_t *cap, size_t need) {
  *  3. Anti-Debugging / Anti-DevTools Runtime Self-Defending Traps
  *  4. Dead Code & Control-Flow Noise Injection
  *  5. Automatic Whitespace Stripping & AST Preserving
- *  6. Mandatory ARWN Official Copyright Header
+ *  6. Mandatory ARWE Official Copyright Header
  * ------------------------------------------------------------------
  */
 
 /*
  * ------------------------------------------------------------------
- * ARWN MAXIMUM-SECURITY INDUSTRIAL-GRADE OBFUSCATOR ENGINE
+ * ARWE MAXIMUM-SECURITY INDUSTRIAL-GRADE OBFUSCATOR ENGINE
  *
  * Military/Banking-Grade Layering:
- *  1. Mandatory Official ARWN Copyright Header
+ *  1. Mandatory Official ARWE Copyright Header
  *  2. Anti-DevTools & Anti-Debugging Polymorphic Timing Traps
  *  3. Global Console Neutralizer & Hook Defense
  *  4. Dynamic Hex String Rotation Table & Runtime Decryption Helper
@@ -57,34 +57,34 @@ static char *ensure_cap(char *buf, size_t *cap, size_t need) {
 #define MAX_EXTRACTED_STRINGS 1024
 #define MAX_STR_LEN 2048
 
-static const char ARWN_COPYRIGHT_HEADER[] =
+static const char ARWE_COPYRIGHT_HEADER[] =
     "/*\n"
     " * Copyright (c) ALRIGROUP and its affiliates.\n"
     " *\n"
-    " * This code is developed using ARWN ( ALRI WEB NATIVE)\n"
+    " * This code is developed using ARWE (ALRI WEB ENGINE)\n"
     " *\n"
-    " * ARWN code is licensed under the ARGLFU - ALRI GROUP LICENSE FREE USE\n"
+    " * ARWE code is licensed under the ARGLFU - ALRI GROUP LICENSE FREE USE\n"
     " * found in the LICENSE file in the root directory of this source tree\n"
     " * and at: https://github.com/alrigroup/licenses/tree/main\n"
     " */\n";
 
-size_t arwn_format_copyright(char *out_buf, size_t out_buf_cap, const char *custom_copyright) {
+size_t arwe_format_copyright(char *out_buf, size_t out_buf_cap, const char *custom_copyright) {
     if (!out_buf || out_buf_cap == 0) return 0;
     size_t header_len = 0;
     if (custom_copyright && custom_copyright[0] != '\0') {
         /* Se o desenvolvedor passou um bloco literal (como comentário multi-linhas, banners ou licenças completas),
-           anexamos diretamente de forma literal após o cabeçalho base do ARWN */
+           anexamos diretamente de forma literal após o cabeçalho base do ARWE */
         size_t cpy_len = strlen(custom_copyright);
         int ends_with_nl = (cpy_len > 0 && custom_copyright[cpy_len - 1] == '\n');
 
         header_len = snprintf(out_buf, out_buf_cap,
             "%s"
             "%s%s",
-            ARWN_COPYRIGHT_HEADER,
+            ARWE_COPYRIGHT_HEADER,
             custom_copyright,
             ends_with_nl ? "" : "\n");
     } else {
-        header_len = snprintf(out_buf, out_buf_cap, "%s", ARWN_COPYRIGHT_HEADER);
+        header_len = snprintf(out_buf, out_buf_cap, "%s", ARWE_COPYRIGHT_HEADER);
     }
     if (header_len >= out_buf_cap) header_len = out_buf_cap - 1;
     return header_len;
@@ -117,8 +117,8 @@ static const char *SAFE_BROWSER_KEYWORDS[] = {
     /* React Framework Globals */
     "React", "ReactDOM", "createRoot", "useState", "useEffect", "useMemo", "useCallback",
     "useRef", "createElement", "render",
-    /* ARWN Bridge Interface */
-    "ARWN", "modules", "load", "call", "dom", "html", "css", "get", "set", "on", "emit",
+    /* ARWE Bridge Interface */
+    "ARWE", "modules", "load", "call", "dom", "html", "css", "get", "set", "on", "emit",
     "ready", "instantiate", "version", "_ensure", "_parse",
     /* Common Object Properties & Built-in Methods */
     "length", "byteLength", "byteOffset", "slice", "subarray", "getUint16", "getUint32",
@@ -169,13 +169,13 @@ static const char *get_mangled_name(mangle_entry_t *table, int *count, const cha
     return NULL;
 }
 
-char *arwn_obfuscate_js(const char *js_src, size_t src_len,
+char *arwe_obfuscate_js(const char *js_src, size_t src_len,
                         const char *custom_copyright, size_t *out_len) {
     if (!js_src) return NULL;
 
-    /* Monta o bloco de cabeçalho completo: ARWN Header + Custom Developer Header */
+    /* Monta o bloco de cabeçalho completo: ARWE Header + Custom Developer Header */
     char full_header[4096];
-    size_t header_len = arwn_format_copyright(full_header, sizeof(full_header), custom_copyright);
+    size_t header_len = arwe_format_copyright(full_header, sizeof(full_header), custom_copyright);
 
     if (src_len == 0) {
         char *empty = (char *)malloc(header_len + 1);
@@ -381,7 +381,7 @@ static size_t write_leb128_u32(uint8_t *buf, uint32_t value) {
     return i;
 }
 
-int arwn_obfuscate_wasm(uint8_t *wasm_data, size_t wasm_len, size_t *out_len) {
+int arwe_obfuscate_wasm(uint8_t *wasm_data, size_t wasm_len, size_t *out_len) {
     if (!wasm_data || wasm_len < 8) return -1;
 
     /* WASM binary magic "\0asm" + version 1 */

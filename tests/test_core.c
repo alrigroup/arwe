@@ -12,12 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "arwn.h"
-#include "arwn_config.h"
-#include "arwn_pack.h"
-#include "arwn_http.h"
-#include "arwn_server.h"
-#include "arwn_obfuscator.h"
+#include "arwe.h"
+#include "arwe_config.h"
+#include "arwe_pack.h"
+#include "arwe_http.h"
+#include "arwe_server.h"
+#include "arwe_obfuscator.h"
 #include "aros_hal.h"
 
 static int g_fail = 0;
@@ -48,59 +48,59 @@ static void test_config(void) {
         "compile.lang=c,js\n"
         "obfuscate=yes\n";
 
-    arwn_cfg_t cfg;
-    int rc = arwn_cfg_parse(&cfg, ok_cfg, strlen(ok_cfg));
+    arwe_cfg_t cfg;
+    int rc = arwe_cfg_parse(&cfg, ok_cfg, strlen(ok_cfg));
     CHECK(rc == 0, "parse valido");
 
-    const char *name = arwn_cfg_find(&cfg, "app", "name");
+    const char *name = arwe_cfg_find(&cfg, "app", "name");
     CHECK(name && strcmp(name, "meuapp") == 0, "key name");
 
-    int port = arwn_cfg_find_int(&cfg, "app", "port", -1);
+    int port = arwe_cfg_find_int(&cfg, "app", "port", -1);
     CHECK(port == 3001, "porta 3001 (int estrito)");
 
-    int obf = arwn_cfg_find_bool(&cfg, "unit:main", "obfuscate", 0);
+    int obf = arwe_cfg_find_bool(&cfg, "unit:main", "obfuscate", 0);
     CHECK(obf == 1, "obfuscate=yes -> 1");
 
     /* inteiro inválido não derruba e cai no default */
-    int bad = arwn_cfg_find_int(&cfg, "app", "port", 9999);
+    int bad = arwe_cfg_find_int(&cfg, "app", "port", 9999);
     CHECK(bad == 3001, "porta valida continua");
 
     /* --- casos malformados --- */
     const char *overflow =
         "[app]\nport=99999999999999999999999\n";
-    arwn_cfg_t c2;
-    rc = arwn_cfg_parse(&c2, overflow, strlen(overflow));
+    arwe_cfg_t c2;
+    rc = arwe_cfg_parse(&c2, overflow, strlen(overflow));
     CHECK(rc == 0, "parse overflow nao quebra (aceito como string)");
-    int ov = arwn_cfg_find_int(&c2, "app", "port", -1);
+    int ov = arwe_cfg_find_int(&c2, "app", "port", -1);
     CHECK(ov == -1, "overflow -> default -1 (guarda de overflow)");
 
     const char *hex = "[app]\nport=0x10\n";
-    arwn_cfg_t c3;
-    rc = arwn_cfg_parse(&c3, hex, strlen(hex));
+    arwe_cfg_t c3;
+    rc = arwe_cfg_parse(&c3, hex, strlen(hex));
     CHECK(rc == 0, "parse hex aceito (string)");
-    int hx = arwn_cfg_find_int(&c3, "app", "port", -1);
+    int hx = arwe_cfg_find_int(&c3, "app", "port", -1);
     CHECK(hx == -1, "hex -> default -1 (rejeita 0x)");
 
     const char *bad_sect = "[app\nport=1\n";
-    arwn_cfg_t c4;
-    rc = arwn_cfg_parse(&c4, bad_sect, strlen(bad_sect));
+    arwe_cfg_t c4;
+    rc = arwe_cfg_parse(&c4, bad_sect, strlen(bad_sect));
     CHECK(rc == -1, "secao sem ] rejeitada");
 
     const char *no_eq = "[app]\nport 3001\n";
-    arwn_cfg_t c5;
-    rc = arwn_cfg_parse(&c5, no_eq, strlen(no_eq));
+    arwe_cfg_t c5;
+    rc = arwe_cfg_parse(&c5, no_eq, strlen(no_eq));
     CHECK(rc == -1, "linha sem = rejeitada");
 
     const char *empty_key = "[app]\n=3001\n";
-    arwn_cfg_t c6;
-    rc = arwn_cfg_parse(&c6, empty_key, strlen(empty_key));
+    arwe_cfg_t c6;
+    rc = arwe_cfg_parse(&c6, empty_key, strlen(empty_key));
     CHECK(rc == -1, "chave vazia rejeitada");
 
     /* buffer gigante */
-    char big[ARWN_CFG_MAX_FILE + 8];
+    char big[ARWE_CFG_MAX_FILE + 8];
     memset(big, 'a', sizeof(big));
-    arwn_cfg_t c7;
-    rc = arwn_cfg_parse(&c7, big, sizeof(big));
+    arwe_cfg_t c7;
+    rc = arwe_cfg_parse(&c7, big, sizeof(big));
     CHECK(rc == -1, "config acima do max rejeitado");
 }
 
@@ -112,8 +112,8 @@ static void test_pack(void) {
     uint8_t wasm[64];
     memset(wasm, 0x1, sizeof(wasm));
 
-    arwn_pack_section_t secs[3];
-    snprintf(secs[0].name, sizeof(secs[0].name), "config.arwn");
+    arwe_pack_section_t secs[3];
+    snprintf(secs[0].name, sizeof(secs[0].name), "config.arwe");
     secs[0].data = s1;
     secs[0].size = (uint32_t)strlen(s1);
     snprintf(secs[1].name, sizeof(secs[1].name), "app.html");
@@ -125,49 +125,49 @@ static void test_pack(void) {
 
     uint8_t buf[4096];
     size_t plen = 0;
-    int rc = arwn_pack_build(secs, 3, buf, sizeof(buf), &plen);
+    int rc = arwe_pack_build(secs, 3, buf, sizeof(buf), &plen);
     CHECK(rc == 0, "pack build ok");
 
-    rc = arwn_pack_validate(buf, plen);
+    rc = arwe_pack_validate(buf, plen);
     CHECK(rc == 0, "pack validate ok (CRC+offsets)");
 
     /* corrompe um byte do payload */
     buf[plen - 10] ^= 0xFF;
-    rc = arwn_pack_validate(buf, plen);
+    rc = arwe_pack_validate(buf, plen);
     CHECK(rc == -1, "payload corrompido detectado (CRC)");
 
     /* trunca o buffer */
-    rc = arwn_pack_validate(buf, plen - 3);
+    rc = arwe_pack_validate(buf, plen - 3);
     CHECK(rc == -1, "buffer truncado rejeitado");
 
     /* magic errado */
     buf[0] = 'X';
-    rc = arwn_pack_validate(buf, plen);
+    rc = arwe_pack_validate(buf, plen);
     CHECK(rc == -1, "magic errado rejeitado");
 }
 
 static void test_app_lifecycle(void) {
     printf("[app]\n");
 
-    arwn_app_t *app = arwn_app_new("teste");
-    CHECK(app != NULL, "arwn_app_new");
-    CHECK(strcmp(arwn_app_name(app), "teste") == 0, "nome ok");
+    arwe_app_t *app = arwe_app_new("teste");
+    CHECK(app != NULL, "arwe_app_new");
+    CHECK(strcmp(arwe_app_name(app), "teste") == 0, "nome ok");
 
     const char *cfg =
         "[app]\nname=meuapp\nport=3001\n"
         "[unit:main]\nsource=web/\nentry=index.arhtml\ncompile=main.js\ncompile.lang=js\n"
         "[unit:functions]\nsource=web/functions.go\nentry=functions.go\ncompile.lang=go\n";
 
-    int rc = arwn_config_parse_buffer(app, cfg, strlen(cfg));
+    int rc = arwe_config_parse_buffer(app, cfg, strlen(cfg));
     CHECK(rc == 0, "config buffer ok");
 
-    CHECK(arwn_config_unit_count(app) == 2, "2 units derivadas");
+    CHECK(arwe_config_unit_count(app) == 2, "2 units derivadas");
 
-    const arwn_unit_t *u0 = arwn_config_unit(app, 0);
+    const arwe_unit_t *u0 = arwe_config_unit(app, 0);
     CHECK(u0 && strcmp(u0->name, "main") == 0, "unit 0 = main");
     CHECK(u0 && strcmp(u0->entry, "index.arhtml") == 0, "unit 0 entry");
 
-    arwn_app_free(app);
+    arwe_app_free(app);
     printf("[app] free ok\n");
 }
 
@@ -177,10 +177,10 @@ static void test_http_parser(void) {
     /* GET simples completo */
     const char *get =
         "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n";
-    arwn_http_req_t req;
-    int rc = arwn_http_parse(&req, get, strlen(get));
-    CHECK(rc == ARWN_HTTP_COMPLETE, "GET / completo");
-    CHECK(arwn_http_method_is(&req, "GET"), "metodo GET");
+    arwe_http_req_t req;
+    int rc = arwe_http_parse(&req, get, strlen(get));
+    CHECK(rc == ARWE_HTTP_COMPLETE, "GET / completo");
+    CHECK(arwe_http_method_is(&req, "GET"), "metodo GET");
     CHECK(req.path_len == 1 && req.path[0] == '/', "path '/'");
     CHECK(req.header_count == 2, "2 headers");
     CHECK(req.content_length == -1, "sem Content-Length");
@@ -188,91 +188,91 @@ static void test_http_parser(void) {
 
     /* incompleto -> NEED_MORE */
     const char *partial = "GET / HTTP/1.1\r\nHost: l";
-    arwn_http_req_t r2;
-    rc = arwn_http_parse(&r2, partial, strlen(partial));
-    CHECK(rc == ARWN_HTTP_NEED_MORE, "request incompleto -> NEED_MORE");
+    arwe_http_req_t r2;
+    rc = arwe_http_parse(&r2, partial, strlen(partial));
+    CHECK(rc == ARWE_HTTP_NEED_MORE, "request incompleto -> NEED_MORE");
 
     /* POST com body e Content-Length */
     const char *post =
         "POST /api HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello";
-    arwn_http_req_t r3;
-    rc = arwn_http_parse(&r3, post, strlen(post));
-    CHECK(rc == ARWN_HTTP_COMPLETE, "POST com body completo");
+    arwe_http_req_t r3;
+    rc = arwe_http_parse(&r3, post, strlen(post));
+    CHECK(rc == ARWE_HTTP_COMPLETE, "POST com body completo");
     CHECK(r3.content_length == 5, "Content-Length=5");
     CHECK(r3.body_len == 5, "body_len=5");
 
     /* POST sem corpo ainda -> NEED_MORE */
     const char *post_partial =
         "POST /api HTTP/1.1\r\nContent-Length: 10\r\n\r\nhello";
-    arwn_http_req_t r4;
-    rc = arwn_http_parse(&r4, post_partial, strlen(post_partial));
-    CHECK(rc == ARWN_HTTP_NEED_MORE, "body incompleto -> NEED_MORE");
+    arwe_http_req_t r4;
+    rc = arwe_http_parse(&r4, post_partial, strlen(post_partial));
+    CHECK(rc == ARWE_HTTP_NEED_MORE, "body incompleto -> NEED_MORE");
 
     /* --- anti-smuggling: Content-Length hex/não-dígito -> 400 --- */
     const char *cl_hex =
         "POST / HTTP/1.1\r\nContent-Length: 0x10\r\n\r\n";
-    arwn_http_req_t r5;
-    rc = arwn_http_parse(&r5, cl_hex, strlen(cl_hex));
-    CHECK(rc == ARWN_HTTP_BAD, "Content-Length hex -> 400");
+    arwe_http_req_t r5;
+    rc = arwe_http_parse(&r5, cl_hex, strlen(cl_hex));
+    CHECK(rc == ARWE_HTTP_BAD, "Content-Length hex -> 400");
 
     const char *cl_neg =
         "POST / HTTP/1.1\r\nContent-Length: -5\r\n\r\n";
-    arwn_http_req_t r6;
-    rc = arwn_http_parse(&r6, cl_neg, strlen(cl_neg));
-    CHECK(rc == ARWN_HTTP_BAD, "Content-Length negativo -> 400");
+    arwe_http_req_t r6;
+    rc = arwe_http_parse(&r6, cl_neg, strlen(cl_neg));
+    CHECK(rc == ARWE_HTTP_BAD, "Content-Length negativo -> 400");
 
     const char *cl_alpha =
         "POST / HTTP/1.1\r\nContent-Length: 12ab\r\n\r\n";
-    arwn_http_req_t r7;
-    rc = arwn_http_parse(&r7, cl_alpha, strlen(cl_alpha));
-    CHECK(rc == ARWN_HTTP_BAD, "Content-Length nao numerico -> 400");
+    arwe_http_req_t r7;
+    rc = arwe_http_parse(&r7, cl_alpha, strlen(cl_alpha));
+    CHECK(rc == ARWE_HTTP_BAD, "Content-Length nao numerico -> 400");
 
     /* Content-Length gigante (overflow) -> 400 */
     const char *cl_huge =
         "POST / HTTP/1.1\r\nContent-Length: 99999999999999999999999999\r\n\r\n";
-    arwn_http_req_t r8;
-    rc = arwn_http_parse(&r8, cl_huge, strlen(cl_huge));
-    CHECK(rc == ARWN_HTTP_BAD, "Content-Length overflow -> 400");
+    arwe_http_req_t r8;
+    rc = arwe_http_parse(&r8, cl_huge, strlen(cl_huge));
+    CHECK(rc == ARWE_HTTP_BAD, "Content-Length overflow -> 400");
 
     /* Content-Length acima do cap de request -> 400 */
     const char *cl_cap =
         "POST / HTTP/1.1\r\nContent-Length: 1000000\r\n\r\n";
-    arwn_http_req_t r9;
-    rc = arwn_http_parse(&r9, cl_cap, strlen(cl_cap));
-    CHECK(rc == ARWN_HTTP_BAD, "Content-Length acima do cap -> 400");
+    arwe_http_req_t r9;
+    rc = arwe_http_parse(&r9, cl_cap, strlen(cl_cap));
+    CHECK(rc == ARWE_HTTP_BAD, "Content-Length acima do cap -> 400");
 
     /* Content-Length duplicado com valores diferentes -> 400 */
     const char *cl_dup =
         "POST / HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 6\r\n\r\n";
-    arwn_http_req_t r10;
-    rc = arwn_http_parse(&r10, cl_dup, strlen(cl_dup));
-    CHECK(rc == ARWN_HTTP_BAD, "Content-Length duplicado diferente -> 400");
+    arwe_http_req_t r10;
+    rc = arwe_http_parse(&r10, cl_dup, strlen(cl_dup));
+    CHECK(rc == ARWE_HTTP_BAD, "Content-Length duplicado diferente -> 400");
 
     /* request line malformada -> 400 */
     const char *bad_line = "GET /\r\n\r\n";
-    arwn_http_req_t r11;
-    rc = arwn_http_parse(&r11, bad_line, strlen(bad_line));
-    CHECK(rc == ARWN_HTTP_BAD, "request-line malformada -> 400");
+    arwe_http_req_t r11;
+    rc = arwe_http_parse(&r11, bad_line, strlen(bad_line));
+    CHECK(rc == ARWE_HTTP_BAD, "request-line malformada -> 400");
 
     /* header sem colon -> 400 */
     const char *bad_hdr = "GET / HTTP/1.1\r\nHost localhost\r\n\r\n";
-    arwn_http_req_t r12;
-    rc = arwn_http_parse(&r12, bad_hdr, strlen(bad_hdr));
-    CHECK(rc == ARWN_HTTP_BAD, "header sem ':' -> 400");
+    arwe_http_req_t r12;
+    rc = arwe_http_parse(&r12, bad_hdr, strlen(bad_hdr));
+    CHECK(rc == ARWE_HTTP_BAD, "header sem ':' -> 400");
 
     /* header name com caractere inválido -> 400 */
     const char *bad_tchar = "GET / HTTP/1.1\r\nHo(st: x\r\n\r\n";
-    arwn_http_req_t r13;
-    rc = arwn_http_parse(&r13, bad_tchar, strlen(bad_tchar));
-    CHECK(rc == ARWN_HTTP_BAD, "header name com tchar invalido -> 400");
+    arwe_http_req_t r13;
+    rc = arwe_http_parse(&r13, bad_tchar, strlen(bad_tchar));
+    CHECK(rc == ARWE_HTTP_BAD, "header name com tchar invalido -> 400");
 
     /* buffer grande demais (acima do max) -> parse BAD */
-    char huge[ARWN_HTTP_MAX_REQUEST + 16];
+    char huge[ARWE_HTTP_MAX_REQUEST + 16];
     memset(huge, 'a', sizeof(huge));
     memcpy(huge, "GET / HTTP/1.1\r\n", 16);
-    arwn_http_req_t r14;
-    rc = arwn_http_parse(&r14, huge, sizeof(huge));
-    CHECK(rc == ARWN_HTTP_BAD, "request acima do max -> 400");
+    arwe_http_req_t r14;
+    rc = arwe_http_parse(&r14, huge, sizeof(huge));
+    CHECK(rc == ARWE_HTTP_BAD, "request acima do max -> 400");
 }
 
 /* roda o server num thread, faz um GET via socket, verifica headers */
@@ -280,8 +280,8 @@ static int g_server_ok = 0;
 
 static void *test_server_thread(void *arg) {
     (void)arg;
-    arwn_server_t *s = (arwn_server_t *)arg;
-    int rc = arwn_server_run(s, "127.0.0.1", 3017);
+    arwe_server_t *s = (arwe_server_t *)arg;
+    int rc = arwe_server_run(s, "127.0.0.1", 3017);
     g_server_ok = (rc == 0) ? 1 : 0;
     return NULL;
 }
@@ -291,12 +291,12 @@ static void test_server(void) {
 
     /* monta um .arweb em memória e expõe via load_arweb */
     const char *s1 = "name=meuapp\n";
-    const char *s2 = "<html>ARWN</html>";
+    const char *s2 = "<html>ARWE</html>";
     uint8_t wasm[16];
     memset(wasm, 0xAB, sizeof(wasm));
 
-    arwn_pack_section_t secs[3];
-    snprintf(secs[0].name, sizeof(secs[0].name), "config.arwn");
+    arwe_pack_section_t secs[3];
+    snprintf(secs[0].name, sizeof(secs[0].name), "config.arwe");
     secs[0].data = s1;
     secs[0].size = (uint32_t)strlen(s1);
     snprintf(secs[1].name, sizeof(secs[1].name), "app.html");
@@ -308,20 +308,20 @@ static void test_server(void) {
 
     static uint8_t buf[4096];
     size_t plen = 0;
-    int rc = arwn_pack_build(secs, 3, buf, sizeof(buf), &plen);
+    int rc = arwe_pack_build(secs, 3, buf, sizeof(buf), &plen);
     CHECK(rc == 0, "pack build ok");
 
-    arwn_unit_t unit;
+    arwe_unit_t unit;
     memset(&unit, 0, sizeof(unit));
     strncpy(unit.name, "main", sizeof(unit.name) - 1);
     strncpy(unit.entry, "index.arhtml", sizeof(unit.entry) - 1);
 
-    arwn_server_t *s = arwn_server_create();
+    arwe_server_t *s = arwe_server_create();
     CHECK(s != NULL, "server create");
 
-    rc = arwn_server_load_arweb(s, &unit, buf, plen);
+    rc = arwe_server_load_arweb(s, &unit, buf, plen);
     CHECK(rc == 0, "load_arweb ok");
-    CHECK(arwn_server_route_count(s) >= 3, ">=3 rotas (/, entry, wasm)");
+    CHECK(arwe_server_route_count(s) >= 3, ">=3 rotas (/, entry, wasm)");
 
     void *th = ar_thread_create(test_server_thread, s);
     CHECK(th != NULL, "server thread started");
@@ -357,7 +357,7 @@ static void test_server(void) {
                   "nosniff header");
             CHECK(strstr(resp, "Content-Security-Policy") != NULL,
                   "CSP header");
-            CHECK(strstr(resp, "<html>ARWN</html>") != NULL, "body do app.html");
+            CHECK(strstr(resp, "<html>ARWE</html>") != NULL, "body do app.html");
         }
         ar_socket_close(fd);
     }
@@ -525,9 +525,9 @@ static void test_server(void) {
         ar_socket_close(fd);
     }
 
-    arwn_server_stop(s);
+    arwe_server_stop(s);
     ar_sleep_ms(100);
-    arwn_server_free(s);
+    arwe_server_free(s);
     printf("[server] stopped\n");
 }
 
@@ -545,7 +545,7 @@ static void test_obfuscator(void) {
         "}\n";
 
     size_t obf_len = 0;
-    char *obf_js = arwn_obfuscate_js(js_raw, strlen(js_raw), "Custom Unit License", &obf_len);
+    char *obf_js = arwe_obfuscate_js(js_raw, strlen(js_raw), "Custom Unit License", &obf_len);
     CHECK(obf_js != NULL, "js obfuscate ok");
     if (obf_js) {
         CHECK(strstr(obf_js, "Custom Unit License") != NULL, "contains custom copyright");
@@ -571,13 +571,13 @@ static void test_obfuscator(void) {
     };
     size_t wasm_sz = sizeof(wasm_sample);
     size_t out_wasm_sz = 0;
-    int rc = arwn_obfuscate_wasm(wasm_sample, wasm_sz, &out_wasm_sz);
+    int rc = arwe_obfuscate_wasm(wasm_sample, wasm_sz, &out_wasm_sz);
     CHECK(rc == 0, "wasm obfuscate ok");
     CHECK(out_wasm_sz == 8, "debug custom section stripped to 8-byte header");
 }
 
 int main(void) {
-    printf("ARWN Fase 0 gates\n");
+    printf("ARWE Fase 0 gates\n");
     test_config();
     test_pack();
     test_app_lifecycle();

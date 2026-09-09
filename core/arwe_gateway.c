@@ -6,7 +6,7 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#include "arwn_gateway.h"
+#include "arwe_gateway.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,15 +14,15 @@
 
 #include "ar_ipc.h"
 #include "aros_hal.h"
-#include "arwn_config.h"
+#include "arwe_config.h"
 
-#define ARWN_GATEWAY_DEFAULT_PORT 9500
-#define ARWN_GATEWAY_MAX_ATTEMPTS 30
-#define ARWN_GATEWAY_RECV_TIMEOUT_MS 800
-#define ARWN_GATEWAY_IDLE_ROUNDS 60
-#define ARWN_GATEWAY_SLEEP_MS 1000
+#define ARWE_GATEWAY_DEFAULT_PORT 9500
+#define ARWE_GATEWAY_MAX_ATTEMPTS 30
+#define ARWE_GATEWAY_RECV_TIMEOUT_MS 800
+#define ARWE_GATEWAY_IDLE_ROUNDS 60
+#define ARWE_GATEWAY_SLEEP_MS 1000
 
-static arwn_server_t *g_server = NULL;
+static arwe_server_t *g_server = NULL;
 static char g_app_name[64] = {0};
 
 typedef struct {
@@ -34,13 +34,13 @@ typedef struct {
   char route_rl[32];
   char server_bind[64];
   uint16_t server_port;
-} arwn_gw_cfg_t;
+} arwe_gw_cfg_t;
 
 /* lê [arws] + [app] do config */
-static void gateway_read_cfg(arwn_app_t *app, arwn_gw_cfg_t *cfg) {
+static void gateway_read_cfg(arwe_app_t *app, arwe_gw_cfg_t *cfg) {
   memset(cfg, 0, sizeof(*cfg));
 
-  const char *gw = arwn_config_get(app, "arws", "gateway", "127.0.0.1:9500");
+  const char *gw = arwe_config_get(app, "arws", "gateway", "127.0.0.1:9500");
   /* divide host:port */
   const char *colon = strrchr(gw, ':');
   if (colon) {
@@ -50,27 +50,27 @@ static void gateway_read_cfg(arwn_app_t *app, arwn_gw_cfg_t *cfg) {
       cfg->host[hl] = '\0';
     }
     int p = atoi(colon + 1);
-    cfg->port = (uint16_t)(p > 0 ? p : ARWN_GATEWAY_DEFAULT_PORT);
+    cfg->port = (uint16_t)(p > 0 ? p : ARWE_GATEWAY_DEFAULT_PORT);
   } else {
     snprintf(cfg->host, sizeof(cfg->host), "%s", gw);
-    cfg->port = ARWN_GATEWAY_DEFAULT_PORT;
+    cfg->port = ARWE_GATEWAY_DEFAULT_PORT;
   }
 
   snprintf(cfg->route_host, sizeof(cfg->route_host), "%s",
-           arwn_config_get(app, "arws", "route.host", "localhost"));
+           arwe_config_get(app, "arws", "route.host", "localhost"));
   snprintf(cfg->route_path, sizeof(cfg->route_path), "%s",
-           arwn_config_get(app, "arws", "route.path", ""));
+           arwe_config_get(app, "arws", "route.path", ""));
   snprintf(cfg->route_mode, sizeof(cfg->route_mode), "%s",
-           arwn_config_get(app, "arws", "route.mode", "production"));
+           arwe_config_get(app, "arws", "route.mode", "production"));
   snprintf(cfg->route_rl, sizeof(cfg->route_rl), "%s",
-           arwn_config_get(app, "arws", "route.rl", ""));
+           arwe_config_get(app, "arws", "route.rl", ""));
   snprintf(cfg->server_bind, sizeof(cfg->server_bind), "%s",
-           arwn_config_get(app, "app", "bind", "127.0.0.1"));
-  cfg->server_port = (uint16_t)arwn_config_get_int(app, "app", "port", 3001);
+           arwe_config_get(app, "app", "bind", "127.0.0.1"));
+  cfg->server_port = (uint16_t)arwe_config_get_int(app, "app", "port", 3001);
 }
 
 static int gw_register_single_route(int fd, const char *name, const char *path,
-                                    const arwn_gw_cfg_t *cfg) {
+                                    const arwe_gw_cfg_t *cfg) {
   char payload[512];
   int len;
   if (cfg->route_rl[0]) {
@@ -113,9 +113,9 @@ static int is_localhost_domain(const char *host) {
 }
 
 static int gw_register_host_routes(int fd, const char *name, const char *host,
-                                   const arwn_gw_cfg_t *cfg,
-                                   arwn_server_t *server) {
-  arwn_gw_cfg_t host_cfg = *cfg;
+                                   const arwe_gw_cfg_t *cfg,
+                                   arwe_server_t *server) {
+  arwe_gw_cfg_t host_cfg = *cfg;
   snprintf(host_cfg.route_host, sizeof(host_cfg.route_host), "%s", host);
 
   /* Domínios localhost / *.localhost são ambientes de teste -> modo test */
@@ -125,12 +125,12 @@ static int gw_register_host_routes(int fd, const char *name, const char *host,
 
   int registered_wildcard = 0;
 
-  /* 1. Se route.path no config.arwn for explícito (ex: '/*'), registra */
+  /* 1. Se route.path no config.arwe for explícito (ex: '/*'), registra */
   if (host_cfg.route_path[0] != '\0' &&
       strcmp(host_cfg.route_path, "none") != 0) {
     if (gw_register_single_route(fd, name, host_cfg.route_path, &host_cfg) ==
         0) {
-      printf("[arwn] registered GET %s host=%s -> proxy://%s:%u\n",
+      printf("[arwe] registered GET %s host=%s -> proxy://%s:%u\n",
              host_cfg.route_path, host_cfg.route_host, host_cfg.server_bind,
              host_cfg.server_port);
     }
@@ -138,14 +138,14 @@ static int gw_register_host_routes(int fd, const char *name, const char *host,
 
   /* 2. Cadastra todas as rotas específicas conhecidas do servidor */
   if (server) {
-    int n = arwn_server_route_count(server);
+    int n = arwe_server_route_count(server);
     for (int i = 0; i < n; i++) {
-      const arwn_route_t *r = arwn_server_route(server, i);
+      const arwe_route_t *r = arwe_server_route(server, i);
       if (!r || !r->path || r->path[0] == '\0')
         continue;
 
       if (gw_register_single_route(fd, name, r->path, &host_cfg) == 0) {
-        printf("[arwn] registered GET %s host=%s -> proxy://%s:%u\n", r->path,
+        printf("[arwe] registered GET %s host=%s -> proxy://%s:%u\n", r->path,
                host_cfg.route_host, host_cfg.server_bind, host_cfg.server_port);
       }
     }
@@ -154,8 +154,8 @@ static int gw_register_host_routes(int fd, const char *name, const char *host,
   return 0;
 }
 
-static int gw_register(int fd, const char *name, const arwn_gw_cfg_t *cfg,
-                       arwn_server_t *server) {
+static int gw_register(int fd, const char *name, const arwe_gw_cfg_t *cfg,
+                       arwe_server_t *server) {
   char hosts_buf[256];
   snprintf(hosts_buf, sizeof(hosts_buf), "%s", cfg->route_host);
 
@@ -182,11 +182,11 @@ static int gw_register(int fd, const char *name, const arwn_gw_cfg_t *cfg,
   return 0;
 }
 
-static void build_routes_text(arwn_server_t *server, char *out, int size) {
+static void build_routes_text(arwe_server_t *server, char *out, int size) {
   int used = 0;
-  int n = arwn_server_route_count(server);
+  int n = arwe_server_route_count(server);
   for (int i = 0; i < n; i++) {
-    const arwn_route_t *r = arwn_server_route(server, i);
+    const arwe_route_t *r = arwe_server_route(server, i);
     int k =
         snprintf(out + used, (size_t)(size - used), "%-16s %s (%zu bytes)\n",
                  r->path, r->content_type, r->size);
@@ -197,7 +197,7 @@ static void build_routes_text(arwn_server_t *server, char *out, int size) {
   out[used] = '\0';
 }
 
-static void handle_query(int fd, arwn_server_t *server, const char *q,
+static void handle_query(int fd, arwe_server_t *server, const char *q,
                          int len) {
   char cmd[128] = {0};
   int i = 0;
@@ -211,7 +211,7 @@ static void handle_query(int fd, arwn_server_t *server, const char *q,
   if (strcmp(cmd, "help") == 0 || strcmp(cmd, "--help") == 0 ||
       strcmp(cmd, "-h") == 0 || cmd[0] == '\0') {
     rlen = snprintf(resp, sizeof(resp),
-                    "ARWN Web Application '%s' v0.2.0 (Self-Registered)\n\n"
+                    "ARWE Web Application '%s' v0.2.0 (Self-Registered)\n\n"
                     "Supported Commands:\n"
                     "  status                - View application health and "
                     "active route count\n"
@@ -223,10 +223,10 @@ static void handle_query(int fd, arwn_server_t *server, const char *q,
     rlen = snprintf(resp, sizeof(resp), "pong");
   } else if (strcmp(cmd, "status") == 0) {
     rlen = snprintf(resp, sizeof(resp), "%s RUNNING routes=%d",
-                    g_app_name[0] ? g_app_name : "arwn",
-                    arwn_server_route_count(server));
+                    g_app_name[0] ? g_app_name : "arwe",
+                    arwe_server_route_count(server));
   } else if (strcmp(cmd, "routes") == 0) {
-    rlen = snprintf(resp, sizeof(resp), "%s", "arwn routes: (list below)\n");
+    rlen = snprintf(resp, sizeof(resp), "%s", "arwe routes: (list below)\n");
     int used = rlen;
     char list[2048];
     build_routes_text(server, list, sizeof(list));
@@ -247,8 +247,8 @@ static void handle_query(int fd, arwn_server_t *server, const char *q,
 }
 
 /* loop de controle: heartbeat quando ocioso, responde queries */
-static void gw_control_loop(int fd, arwn_server_t *server) {
-  ar_socket_set_recv_timeout(fd, ARWN_GATEWAY_RECV_TIMEOUT_MS);
+static void gw_control_loop(int fd, arwe_server_t *server) {
+  ar_socket_set_recv_timeout(fd, ARWE_GATEWAY_RECV_TIMEOUT_MS);
 
   char buf[AR_IPC_BUF_SIZE];
   int idle = 0;
@@ -266,7 +266,7 @@ static void gw_control_loop(int fd, arwn_server_t *server) {
     }
 
     idle++;
-    if (idle > ARWN_GATEWAY_IDLE_ROUNDS)
+    if (idle > ARWE_GATEWAY_IDLE_ROUNDS)
       break;
 
     if (ar_ipc_send_frame(fd, IPC_HEARTBEAT, NULL, 0) < 0)
@@ -274,57 +274,57 @@ static void gw_control_loop(int fd, arwn_server_t *server) {
   }
 
   ar_socket_close(fd);
-  printf("[arwn] control channel closed\n");
+  printf("[arwe] control channel closed\n");
 }
 
 /* ------------------------------------------------------------------ */
 
 static void *gateway_thread(void *arg) {
-  arwn_app_t *app = (arwn_app_t *)arg;
+  arwe_app_t *app = (arwe_app_t *)arg;
 
-  arwn_gw_cfg_t cfg;
+  arwe_gw_cfg_t cfg;
   gateway_read_cfg(app, &cfg);
 
   char name[64];
-  snprintf(name, sizeof(name), "%s", arwn_app_name(app));
+  snprintf(name, sizeof(name), "%s", arwe_app_name(app));
   strncpy(g_app_name, name, sizeof(g_app_name) - 1);
 
-  printf("[arwn] gateway %s:%u (route %s host=%s)\n", cfg.host, cfg.port,
+  printf("[arwe] gateway %s:%u (route %s host=%s)\n", cfg.host, cfg.port,
          cfg.route_path, cfg.route_host);
 
-  arwn_server_t *server = arwn_server_for_gateway();
+  arwe_server_t *server = arwe_server_for_gateway();
 
   /* registro/controle com reconexão e backoff (padrão home_server) */
-  for (int attempt = 1; attempt <= ARWN_GATEWAY_MAX_ATTEMPTS; attempt++) {
+  for (int attempt = 1; attempt <= ARWE_GATEWAY_MAX_ATTEMPTS; attempt++) {
     int fd = ar_socket_create(1);
     if (fd >= 0 && ar_socket_connect(fd, cfg.host, cfg.port) == 0) {
       if (gw_register(fd, name, &cfg, server) == 0) {
-        printf("[arwn] routes registered + control channel open (attempt %d)\n",
+        printf("[arwe] routes registered + control channel open (attempt %d)\n",
                attempt);
         gw_control_loop(fd, server);
-        printf("[arwn] control channel lost, reconnecting...\n");
-        ar_sleep_ms(ARWN_GATEWAY_SLEEP_MS);
+        printf("[arwe] control channel lost, reconnecting...\n");
+        ar_sleep_ms(ARWE_GATEWAY_SLEEP_MS);
         continue;
       }
     }
     if (fd >= 0)
       ar_socket_close(fd);
-    printf("[arwn] register retry %d/%d\n", attempt, ARWN_GATEWAY_MAX_ATTEMPTS);
-    ar_sleep_ms(ARWN_GATEWAY_SLEEP_MS);
+    printf("[arwe] register retry %d/%d\n", attempt, ARWE_GATEWAY_MAX_ATTEMPTS);
+    ar_sleep_ms(ARWE_GATEWAY_SLEEP_MS);
   }
 
-  fprintf(stderr, "[arwn] failed to register routes after %d attempts\n",
-          ARWN_GATEWAY_MAX_ATTEMPTS);
+  fprintf(stderr, "[arwe] failed to register routes after %d attempts\n",
+          ARWE_GATEWAY_MAX_ATTEMPTS);
   return NULL;
 }
 
-arwn_server_t *arwn_server_for_gateway(void) { return g_server; }
+arwe_server_t *arwe_server_for_gateway(void) { return g_server; }
 
-int arwn_gateway_start(arwn_app_t *app, arwn_server_t *server) {
+int arwe_gateway_start(arwe_app_t *app, arwe_server_t *server) {
   if (!app || !server)
     return -1;
   g_server = server;
-  snprintf(g_app_name, sizeof(g_app_name), "%s", arwn_app_name(app));
+  snprintf(g_app_name, sizeof(g_app_name), "%s", arwe_app_name(app));
 
   void *th = ar_thread_create(gateway_thread, app);
   if (!th)

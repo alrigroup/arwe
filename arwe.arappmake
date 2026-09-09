@@ -1,0 +1,45 @@
+ALRIGROUP@APPMAKE
+{
+  "name": "arwe",
+  "bin": "arwe.arapp",
+  "version": "0.2.01",
+  "runtime": "native",
+  "entry": "arwe_build",
+  "platforms": {
+    "windows": {
+      "entry": "arwe_build.exe"
+    },
+    "linux": {
+      "entry": "arwe_build"
+    },
+    "linux-x64": {
+      "entry": "arwe_build"
+    },
+    "linux-arm64": {
+      "entry": "arwe_build"
+    }
+  },
+  "build": {
+    "staging": "$ARCORE/.staging/$APP_NAME",
+    "steps": [
+      {
+        "name": "cc",
+        "cmd": "gcc -O2 -I. -Iinclude -Icore -I../../ALRIOS/arkernel/include -I../../ALRIOS/arkernel/os/include -o $STAGING/arwe_build tools/arwe_build.c core/arwe_core.c core/arwe_server.c core/arwe_http.c core/arwe_gateway.c core/arwe_builder.c core/arwe_obfuscator.c core/arwe_pack.c core/arwe_config.c -L$ARCORE/lib -larkernel -lssl -lcrypto"
+      },
+      {
+        "name": "header",
+        "cmd": "cp include/arwe.h $STAGING/arwe.h"
+      }
+    ]
+  },
+  "files": [
+    "arwe_build",
+    "arwe.h"
+  ],
+  "description": "Runtime Nativo Web e Servidor de Containers .arweb",
+  "commands": [
+    "status",
+    "routes",
+    "ping"
+  ]
+}

@@ -6,7 +6,7 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#include "arwn_http.h"
+#include "arwe_http.h"
 
 #include <string.h>
 
@@ -61,7 +61,7 @@ static uint32_t hdr_hash_add(uint32_t h, unsigned char c) {
     return (h ^ c) * 16777619u;
 }
 
-static arwn_http_hdr_id_t hdr_id_for(uint32_t h, size_t len,
+static arwe_http_hdr_id_t hdr_id_for(uint32_t h, size_t len,
                                      const unsigned char *name) {
     (void)h;
     /* compara case-insensitive (nome já tem os bytes originais) */
@@ -73,21 +73,21 @@ static arwn_http_hdr_id_t hdr_id_for(uint32_t h, size_t len,
         case 10: ref = "connection";       break;
         case 14: ref = "content-length";   break;
         case 15: ref = "accept-encoding";  break;
-        default: return ARWN_HTTP_H_UNKNOWN;
+        default: return ARWE_HTTP_H_UNKNOWN;
     }
     for (size_t k = 0; k < len; k++) {
         if (lowcase[name[k]] != (unsigned char)ref[k])
-            return ARWN_HTTP_H_UNKNOWN;
+            return ARWE_HTTP_H_UNKNOWN;
     }
     switch (len) {
-        case 4:  return ARWN_HTTP_H_HOST;
-        case 5:  return ARWN_HTTP_H_RANGE;
-        case 6:  return ARWN_HTTP_H_COOKIE;
-        case 10: return ARWN_HTTP_H_CONNECTION;
-        case 14: return ARWN_HTTP_H_CONTENT_LENGTH;
-        case 15: return ARWN_HTTP_H_ACCEPT_ENCODING;
+        case 4:  return ARWE_HTTP_H_HOST;
+        case 5:  return ARWE_HTTP_H_RANGE;
+        case 6:  return ARWE_HTTP_H_COOKIE;
+        case 10: return ARWE_HTTP_H_CONNECTION;
+        case 14: return ARWE_HTTP_H_CONTENT_LENGTH;
+        case 15: return ARWE_HTTP_H_ACCEPT_ENCODING;
     }
-    return ARWN_HTTP_H_UNKNOWN;
+    return ARWE_HTTP_H_UNKNOWN;
 }
 
 /* ------------------------------------------------------------------ */
@@ -125,21 +125,21 @@ static int find_header_end(const char *buf, size_t len, size_t *end) {
     return 0;
 }
 
-int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
-    if (!req || !buf) return ARWN_HTTP_BAD;
+int arwe_http_parse(arwe_http_req_t *req, const char *buf, size_t len) {
+    if (!req || !buf) return ARWE_HTTP_BAD;
     memset(req, 0, sizeof(*req));
     req->content_length = -1;
     req->header_end = 0;
 
     /* requisição acima do cap -> rejeita já de cara */
-    if (len > ARWN_HTTP_MAX_REQUEST) return ARWN_HTTP_BAD;
+    if (len > ARWE_HTTP_MAX_REQUEST) return ARWE_HTTP_BAD;
 
     /* request line sem fim em até 64KB de a's -> precisa concluir */
     size_t scan = 0;
     while (scan < len && buf[scan] != '\n') scan++;
     if (scan >= len) {
         /* sem \n: se já passou do max, BAD; senão NEED_MORE */
-        return len >= ARWN_HTTP_MAX_REQUEST ? ARWN_HTTP_BAD : ARWN_HTTP_NEED_MORE;
+        return len >= ARWE_HTTP_MAX_REQUEST ? ARWE_HTTP_BAD : ARWE_HTTP_NEED_MORE;
     }
 
     /* --- 1. linhas do request --- */
@@ -147,7 +147,7 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
     size_t i = 0;
     /* acha o fim da request line (CRLF ou LF) */
     while (i < len && buf[i] != '\n') i++;
-    if (i >= len) return ARWN_HTTP_NEED_MORE;
+    if (i >= len) return ARWE_HTTP_NEED_MORE;
     if (i < len && buf[i] == '\n') {
         size_t line_len = i; /* sem o \n */
         if (line_len > 0 && buf[line_len - 1] == '\r') line_len--;
@@ -159,14 +159,14 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
 
         const char *m = p;
         while (p < end && *p != ' ') p++;
-        if (p >= end) return ARWN_HTTP_BAD;
+        if (p >= end) return ARWE_HTTP_BAD;
         req->method = m;
         req->method_len = (size_t)(p - m);
         p++; /* pula espaço */
 
         const char *pa = p;
         while (p < end && *p != ' ') p++;
-        if (p >= end) return ARWN_HTTP_BAD;
+        if (p >= end) return ARWE_HTTP_BAD;
         const char *qmark = memchr(pa, '?', (size_t)(p - pa));
         req->path = pa;
         req->path_len = qmark ? (size_t)(qmark - pa) : (size_t)(p - pa);
@@ -175,14 +175,14 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
         req->version = p;
         req->version_len = (size_t)(end - p);
 
-        if (req->method_len == 0 || req->method_len > ARWN_HTTP_MAX_METHOD)
-            return ARWN_HTTP_BAD;
-        if (req->path_len == 0 || req->path_len > ARWN_HTTP_MAX_PATH)
-            return ARWN_HTTP_BAD;
-        if (req->version_len == 0 || req->version_len > ARWN_HTTP_MAX_VERSION)
-            return ARWN_HTTP_BAD;
+        if (req->method_len == 0 || req->method_len > ARWE_HTTP_MAX_METHOD)
+            return ARWE_HTTP_BAD;
+        if (req->path_len == 0 || req->path_len > ARWE_HTTP_MAX_PATH)
+            return ARWE_HTTP_BAD;
+        if (req->version_len == 0 || req->version_len > ARWE_HTTP_MAX_VERSION)
+            return ARWE_HTTP_BAD;
     } else {
-        return ARWN_HTTP_BAD;
+        return ARWE_HTTP_BAD;
     }
 
     /* --- 2. headers --- */
@@ -190,7 +190,7 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
     hl = i;
     int count = 0;
     while (1) {
-        if (hl >= len) return ARWN_HTTP_NEED_MORE;
+        if (hl >= len) return ARWE_HTTP_NEED_MORE;
 
         /* fim dos headers? */
         if (buf[hl] == '\n') {
@@ -206,18 +206,18 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
         /* acha fim desta linha de header */
         size_t le = hl;
         while (le < len && buf[le] != '\n') le++;
-        if (le >= len) return ARWN_HTTP_NEED_MORE;
+        if (le >= len) return ARWE_HTTP_NEED_MORE;
         size_t hlen = le - hl;
         if (hlen > 0 && buf[le - 1] == '\r') hlen--;
         le++; /* pula o \n */
 
-        if (count >= ARWN_HTTP_MAX_HEADERS) return ARWN_HTTP_BAD;
+        if (count >= ARWE_HTTP_MAX_HEADERS) return ARWE_HTTP_BAD;
 
         /* separa name : value */
         const char *name = buf + hl;
         size_t colon = 0;
         while (colon < hlen && buf[hl + colon] != ':') colon++;
-        if (colon == 0 || colon >= hlen) return ARWN_HTTP_BAD;
+        if (colon == 0 || colon >= hlen) return ARWE_HTTP_BAD;
         size_t name_len = colon;
 
         const char *value = buf + hl + colon + 1;
@@ -239,11 +239,11 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
                   c == '%' || c == '&' || c == '\'' || c == '*' || c == '+' ||
                   c == '-' || c == '.' || c == '^' || c == '_' || c == '`' ||
                   c == '|' || c == '~'))
-                return ARWN_HTTP_BAD;
+                return ARWE_HTTP_BAD;
             h = hdr_hash_add(h, lowcase[c]);
         }
 
-        arwn_http_header_t *hd = &req->headers[count];
+        arwe_http_header_t *hd = &req->headers[count];
         hd->name = name;
         hd->name_len = name_len;
         hd->value = value;
@@ -258,38 +258,38 @@ int arwn_http_parse(arwn_http_req_t *req, const char *buf, size_t len) {
 
     /* acha o fim dos headers no buffer */
     if (!find_header_end(buf, len, &req->header_end))
-        return ARWN_HTTP_BAD;
+        return ARWE_HTTP_BAD;
 
     /* --- 3. Content-Length (estrito, anti-smuggling) --- */
     uint64_t cl_total = 0;
     int cl_seen = 0;
     for (int k = 0; k < count; k++) {
-        if (req->headers[k].id == ARWN_HTTP_H_CONTENT_LENGTH) {
+        if (req->headers[k].id == ARWE_HTTP_H_CONTENT_LENGTH) {
             uint64_t v;
             if (!parse_uint64(req->headers[k].value,
                               req->headers[k].value_len, &v))
-                return ARWN_HTTP_BAD; /* hex, negativo, não-dígito → 400 */
+                return ARWE_HTTP_BAD; /* hex, negativo, não-dígito → 400 */
             /* Content-Length múltiplo com valores diferentes → 400 */
-            if (cl_seen && cl_total != v) return ARWN_HTTP_BAD;
+            if (cl_seen && cl_total != v) return ARWE_HTTP_BAD;
             cl_total = v;
             cl_seen = 1;
         }
     }
     if (cl_seen) {
-        if (cl_total > (uint64_t)(ARWN_HTTP_MAX_REQUEST - req->header_end))
-            return ARWN_HTTP_BAD; /* corpo acima do cap */
+        if (cl_total > (uint64_t)(ARWE_HTTP_MAX_REQUEST - req->header_end))
+            return ARWE_HTTP_BAD; /* corpo acima do cap */
         req->content_length = (int64_t)cl_total;
         req->body_len = (size_t)cl_total;
     }
 
     /* --- 4. completeza --- */
     size_t total_needed = req->header_end + req->body_len;
-    if (len < total_needed) return ARWN_HTTP_NEED_MORE;
+    if (len < total_needed) return ARWE_HTTP_NEED_MORE;
     req->complete = 1;
-    return ARWN_HTTP_COMPLETE;
+    return ARWE_HTTP_COMPLETE;
 }
 
-const char *arwn_http_header(const arwn_http_req_t *req, arwn_http_hdr_id_t id,
+const char *arwe_http_header(const arwe_http_req_t *req, arwe_http_hdr_id_t id,
                              size_t *value_len) {
     for (int i = 0; i < req->header_count; i++) {
         if (req->headers[i].id == id) {
@@ -301,15 +301,15 @@ const char *arwn_http_header(const arwn_http_req_t *req, arwn_http_hdr_id_t id,
     return NULL;
 }
 
-int arwn_http_method_is(const arwn_http_req_t *req, const char *m) {
+int arwe_http_method_is(const arwe_http_req_t *req, const char *m) {
     size_t ml = strlen(m);
     return req->method_len == ml && memcmp(req->method, m, ml) == 0;
 }
 
-int arwn_http_header_copy(const arwn_http_req_t *req, arwn_http_hdr_id_t id,
+int arwe_http_header_copy(const arwe_http_req_t *req, arwe_http_hdr_id_t id,
                           char *out, size_t cap) {
     size_t vlen;
-    const char *v = arwn_http_header(req, id, &vlen);
+    const char *v = arwe_http_header(req, id, &vlen);
     if (!v || cap == 0) return -1;
     if (vlen > cap - 1) vlen = cap - 1;
     memcpy(out, v, vlen);

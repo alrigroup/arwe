@@ -1,9 +1,9 @@
 /*
- * arwn-bridge.js — Loader/Bridge padrão injetado em todo .arweb.
- * Modelo híbrido: wasm chama helpers ARWN.* (DOM/CSS/eventos) e JS chama
- * exports do wasm (ARWN.modules.<unit>.<fn>). Sem eval/new Function.
+ * arwe-engine.js — Loader/Bridge padrão injetado em todo .arweb.
+ * Modelo híbrido: wasm chama helpers ARWE.* (DOM/CSS/eventos) e JS chama
+ * exports do wasm (ARWE.modules.<unit>.<fn>). Sem eval/new Function.
  *
- * Parse binário do .arweb (layout idêntico ao arwn_pack.c):
+ * Parse binário do .arweb (layout idêntico ao arwe_pack.c):
  *   header 48B: magic[16] + ver u16 + flags u16 + count u16 +
  *               header_crc u32 (crc dos primeiros 22 bytes) +
  *               table_off u32 + payload_off u32 + payload_size u32 +
@@ -94,7 +94,7 @@
   var units = {};   /* name -> { module, instance, exports, imports, sections } */
   var listeners = {};
 
-  var ARWN = {
+  var ARWE = {
     version: '0.3.0',
     _parse: parseArweb,
     modules: {},
@@ -116,7 +116,7 @@
         exports: null
       };
       units[unit] = entry;
-      if (!ARWN.modules[unit]) ARWN.modules[unit] = {};
+      if (!ARWE.modules[unit]) ARWE.modules[unit] = {};
       return entry;
     },
 
@@ -141,11 +141,11 @@
       return e;
     },
 
-    /* Chama arwn_main da unit (instancia na 1ª chamada). */
+    /* Chama arwe_main da unit (instancia na 1ª chamada). */
     async call(name, payload) {
       var e = await this._ensure(name);
-      var fn = e.exports['arwn_main'];
-      if (!fn) throw new Error('export arwn_main missing: ' + name);
+      var fn = e.exports['arwe_main'];
+      if (!fn) throw new Error('export arwe_main missing: ' + name);
       return fn(payload);
     },
 
@@ -177,7 +177,7 @@
       var cbs = listeners[name] || [];
       for (var i = 0; i < cbs.length; i++) cbs[i](data);
       if (typeof CustomEvent !== 'undefined') {
-        var ev = new CustomEvent('arwn:' + name, { detail: data });
+        var ev = new CustomEvent('arwe:' + name, { detail: data });
         document.dispatchEvent(ev);
       }
     },
@@ -185,16 +185,17 @@
     ready: function (cb) {
       if (typeof document !== 'undefined' &&
           document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { cb(ARWN); });
+        document.addEventListener('DOMContentLoaded', function () { cb(ARWE); });
       } else {
-        cb(ARWN);
+        cb(ARWE);
       }
     },
 
     instantiate: function (name, imports) {
-      return ARWN.load(name, imports).then(function (e) { return e; });
+      return ARWE.load(name, imports).then(function (e) { return e; });
     }
   };
 
-  global.ARWN = ARWN;
+  global.ARWE = ARWE;
+  global.ARWE = ARWE; /* Retrocompatibility alias */
 })(typeof window !== 'undefined' ? window : globalThis);

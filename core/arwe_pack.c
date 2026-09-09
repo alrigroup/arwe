@@ -6,7 +6,7 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#include "arwn_pack.h"
+#include "arwe_pack.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +14,7 @@
 
 #define ARWEB_HEADER_SIZE   48
 #define ARWEB_ENTRY_SIZE    48
-#define ARWEB_MAX_PAYLOAD   ARWN_PACK_MAX_PAYLOAD
+#define ARWEB_MAX_PAYLOAD   ARWE_PACK_MAX_PAYLOAD
 
 /* ------------------------------------------------------------------ */
 /* CRC32 (ISO-HDLC, polinômio 0xEDB88320)                              */
@@ -24,7 +24,7 @@
 /* CRC32 (ISO-HDLC, polinômio 0xEDB88320)                              */
 /* ------------------------------------------------------------------ */
 
-uint32_t arwn_crc32(const void *data, size_t len) {
+uint32_t arwe_crc32(const void *data, size_t len) {
     static uint32_t table[256];
     static int init = 0;
     if (!init) {
@@ -78,10 +78,10 @@ static uint32_t rd_u32(const uint8_t *d) {
            ((uint32_t)d[2] << 16) | ((uint32_t)d[3] << 24);
 }
 
-int arwn_pack_build(const arwn_pack_section_t *sections, int count,
+int arwe_pack_build(const arwe_pack_section_t *sections, int count,
                     uint8_t *out, size_t out_cap, size_t *out_len) {
     if (!sections || count < 0 || !out || !out_len) return -1;
-    if (count > ARWN_ARWEB_MAX_SECTIONS) return -1;
+    if (count > ARWE_ARWEB_MAX_SECTIONS) return -1;
 
     uint64_t payload_total = 0;
     for (int i = 0; i < count; i++) {
@@ -96,15 +96,15 @@ int arwn_pack_build(const arwn_pack_section_t *sections, int count,
     uint32_t payload_off = (uint32_t)(ARWEB_HEADER_SIZE + (uint64_t)count * ARWEB_ENTRY_SIZE);
 
     /* header */
-    memcpy(out, ARWN_ARWEB_MAGIC, 16);
-    wr_u16(out + 16, ARWN_ARWEB_VERSION);
+    memcpy(out, ARWE_ARWEB_MAGIC, 16);
+    wr_u16(out + 16, ARWE_ARWEB_VERSION);
     wr_u16(out + 18, 0);
     wr_u16(out + 20, (uint16_t)count);
     wr_u32(out + 26, table_off);
     wr_u32(out + 30, payload_off);
     wr_u32(out + 34, (uint32_t)payload_total);
     wr_u32(out + 38, 0);
-    wr_u32(out + 22, arwn_crc32(out, 22));
+    wr_u32(out + 22, arwe_crc32(out, 22));
 
     /* entries + payload */
     uint32_t cur = payload_off;
@@ -112,11 +112,11 @@ int arwn_pack_build(const arwn_pack_section_t *sections, int count,
         uint8_t *e = out + table_off + (uint32_t)i * ARWEB_ENTRY_SIZE;
         memset(e, 0, ARWEB_ENTRY_SIZE);
         size_t nl = strlen(sections[i].name);
-        if (nl > ARWN_ARWEB_NAME_MAX) return -1;
+        if (nl > ARWE_ARWEB_NAME_MAX) return -1;
         memcpy(e, sections[i].name, nl);
         wr_u32(e + 32, cur);
         wr_u32(e + 36, sections[i].size);
-        wr_u32(e + 40, arwn_crc32(sections[i].data, sections[i].size));
+        wr_u32(e + 40, arwe_crc32(sections[i].data, sections[i].size));
         e[44] = 0; /* compressed: não comprimido no MVP */
 
         if (sections[i].size > 0) {
@@ -129,15 +129,15 @@ int arwn_pack_build(const arwn_pack_section_t *sections, int count,
     return 0;
 }
 
-int arwn_pack_validate(const uint8_t *data, size_t len) {
+int arwe_pack_validate(const uint8_t *data, size_t len) {
     if (!data || len < ARWEB_HEADER_SIZE) return -1;
-    if (memcmp(data, ARWN_ARWEB_MAGIC, 16) != 0) return -1;
-    if (rd_u16(data + 16) != ARWN_ARWEB_VERSION) return -1;
+    if (memcmp(data, ARWE_ARWEB_MAGIC, 16) != 0) return -1;
+    if (rd_u16(data + 16) != ARWE_ARWEB_VERSION) return -1;
 
-    if (arwn_crc32(data, 22) != rd_u32(data + 22)) return -1;
+    if (arwe_crc32(data, 22) != rd_u32(data + 22)) return -1;
 
     uint16_t count = rd_u16(data + 20);
-    if (count > ARWN_ARWEB_MAX_SECTIONS) return -1;
+    if (count > ARWE_ARWEB_MAX_SECTIONS) return -1;
 
     uint32_t table_off = rd_u32(data + 26);
     uint32_t payload_off = rd_u32(data + 30);
@@ -157,7 +157,7 @@ int arwn_pack_validate(const uint8_t *data, size_t len) {
 
         /* nome terminado em NUL dentro do campo */
         int has_nul = 0;
-        for (int k = 0; k < ARWN_ARWEB_NAME_MAX; k++) {
+        for (int k = 0; k < ARWE_ARWEB_NAME_MAX; k++) {
             if (e[k] == 0) { has_nul = 1; break; }
         }
         if (!has_nul) return -1;
@@ -167,29 +167,29 @@ int arwn_pack_validate(const uint8_t *data, size_t len) {
         if (off < end) return -1; /* seções em ordem, sem overlap */
         end = off + size;
 
-        if (arwn_crc32(data + off, size) != crc) return -1;
+        if (arwe_crc32(data + off, size) != crc) return -1;
     }
 
     (void)payload_size;
     return 0;
 }
 
-int arwn_pack_index(const uint8_t *data, size_t len,
-                    arwn_pack_section_t *views, int views_cap) {
+int arwe_pack_index(const uint8_t *data, size_t len,
+                    arwe_pack_section_t *views, int views_cap) {
     if (!data || len < ARWEB_HEADER_SIZE || !views || views_cap <= 0)
         return -1;
-    if (arwn_pack_validate(data, len) != 0) return -1;
+    if (arwe_pack_validate(data, len) != 0) return -1;
 
     uint16_t count = rd_u16(data + 20);
-    if (count > ARWN_ARWEB_MAX_SECTIONS) return -1;
+    if (count > ARWE_ARWEB_MAX_SECTIONS) return -1;
     if (count > views_cap) return -1;
 
     uint32_t table_off = rd_u32(data + 26);
     for (uint32_t i = 0; i < count; i++) {
         const uint8_t *e = data + table_off + i * ARWEB_ENTRY_SIZE;
         size_t nl = 0;
-        while (nl < ARWN_ARWEB_NAME_MAX && e[nl] != 0) nl++;
-        if (nl == 0 || nl > ARWN_ARWEB_NAME_MAX) return -1;
+        while (nl < ARWE_ARWEB_NAME_MAX && e[nl] != 0) nl++;
+        if (nl == 0 || nl > ARWE_ARWEB_NAME_MAX) return -1;
         memcpy(views[i].name, e, nl);
         views[i].name[nl] = '\0';
         views[i].data = data + rd_u32(e + 32);

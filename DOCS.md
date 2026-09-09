@@ -1,6 +1,6 @@
-# ARWN — Technical Reference Manual
+# ARWE — Technical Reference Manual
 
-*ALRI Web Native Compiler, Zero-Disk Container Runtime & WASM Engine*
+*ALRI Web Engine — Zero-Disk Container Runtime & WASM Engine*
 
 *Version: 0.2.01 | Engineered by ALRI Development | Governed by ALRI GROUP © 2026 | License: ARGLP*
 
@@ -11,25 +11,25 @@
 - [1. Overview & Architectural Philosophy](#1-overview--architectural-philosophy)
 - [2. Architecture & Compilation Pipeline](#2-architecture--compilation-pipeline)
 - [3. The .arweb Binary Container Format](#3-the-arweb-binary-container-format)
-- [4. Configuration Reference (config.arwn)](#4-configuration-reference-configarwn)
+- [4. Configuration Reference (config.arwe)](#4-configuration-reference-configarwe)
 - [5. Module Reference](#5-module-reference)
-  - [5.1 Core Application (arwn_core)](#51-core-application-arwn_core)
-  - [5.2 Builder Engine (arwn_builder)](#52-builder-engine-arwn_builder)
-  - [5.3 Container Packer & CRC32 (arwn_pack)](#53-container-packer--crc32-arwn_pack)
-  - [5.4 Base64 VM Obfuscator (arwn_obfuscator)](#54-base64-vm-obfuscator-arwn_obfuscator)
-  - [5.5 Embedded HTTP Server (arwn_server & arwn_http)](#55-embedded-http-server-arwn_server--arwn_http)
-  - [5.6 Gateway Auto-Registration (arwn_gateway)](#56-gateway-auto-registration-arwn_gateway)
-  - [5.7 Declarative Config Parser (arwn_config)](#57-declarative-config-parser-arwn_config)
+  - [5.1 Core Application (arwe_core)](#51-core-application-arwe_core)
+  - [5.2 Builder Engine (arwe_builder)](#52-builder-engine-arwe_builder)
+  - [5.3 Container Packer & CRC32 (arwe_pack)](#53-container-packer--crc32-arwe_pack)
+  - [5.4 Base64 VM Obfuscator (arwe_obfuscator)](#54-base64-vm-obfuscator-arwe_obfuscator)
+  - [5.5 Embedded HTTP Server (arwe_server & arwe_http)](#55-embedded-http-server-arwe_server--arwe_http)
+  - [5.6 Gateway Auto-Registration (arwe_gateway)](#56-gateway-auto-registration-arwe_gateway)
+  - [5.7 Declarative Config Parser (arwe_config)](#57-declarative-config-parser-arwe_config)
 - [6. WebAssembly (WASM) Integration](#6-webassembly-wasm-integration)
 - [7. Obfuscation & Intellectual Property Protection](#7-obfuscation--intellectual-property-protection)
-- [8. CLI Reference (arwn_build)](#8-cli-reference-arwn_build)
+- [8. CLI Reference (arwe_build)](#8-cli-reference-arwe_build)
 - [9. Build & Packaging](#9-build--packaging)
 
 ---
 
 ## 1. Overview & Architectural Philosophy
 
-**ARWN (ALRI Web Native)** is the proprietary web application packaging and execution framework for the ALRIOS platform. It eliminates traditional web server bottlenecks (runtime file lookups, dynamic bundling, unencrypted client assets) by compiling web interfaces and WASM logic into sealed, tamper-proof, in-memory binary containers (`.arweb`).
+**ARWE (ALRI Web Engine)** is the proprietary web application packaging and execution framework for the ALRIOS platform. It eliminates traditional web server bottlenecks (runtime file lookups, dynamic bundling, unencrypted client assets) by compiling web interfaces and WASM logic into sealed, tamper-proof, in-memory binary containers (`.arweb`).
 
 ### Core Value Propositions
 
@@ -37,7 +37,7 @@
 2. **Deterministic Data Integrity**: Every section inside an `.arweb` container is individually checked against a hardware CRC32 checksum before mounting.
 3. **Intellectual Property Shield**: Native self-executing Base64 VM obfuscation wraps frontend logic and injects sovereign ALRI Group copyright assertions.
 4. **WASM Micro-Engines**: Linear memory execution of C, C++, and Rust algorithms alongside JavaScript.
-5. **Autonomic Mesh Discovery**: When booted, ARWN services dynamically announce and register their virtual hosts and routing tables with the ARWS reverse proxy gateway via port 9500.
+5. **Autonomic Mesh Discovery**: When booted, ARWE services dynamically announce and register their virtual hosts and routing tables with the ARWS reverse proxy gateway via port 9500.
 
 ---
 
@@ -45,16 +45,16 @@
 
 ```
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │                         ARWN Two-Phase Lifecycle                            │
+ │                         ARWE Two-Phase Lifecycle                            │
  │                                                                             │
  │  PHASE 1: BUILD & PACK (Compile Time)                                       │
  │  Source Assets (web/main.arhtml, main.js, main.css, calc.c)                 │
  │       │                                                                     │
  │       ▼                                                                     │
- │  arwn_builder (Compiles WASM, bundles JS/CSS, applies Base64 VM)            │
+ │  arwe_builder (Compiles WASM, bundles JS/CSS, applies Base64 VM)            │
  │       │                                                                     │
  │       ▼                                                                     │
- │  arwn_pack (Builds .arweb binary, adds ALRIGROUP@ARWEB magic + CRC32)       │
+ │  arwe_pack (Builds .arweb binary, adds ALRIGROUP@ARWEB magic + CRC32)       │
  │       │                                                                     │
  │       ▼                                                                     │
  │  Output: build/<unit_name>.arweb                                            │
@@ -62,11 +62,11 @@
  │ ─────────────────────────────────────────────────────────────────────────── │
  │                                                                             │
  │  PHASE 2: MOUNT & SERVE (Runtime)                                           │
- │  arwn_mount (Loads .arweb into linear RAM, zero-copy section indexing)      │
+ │  arwe_mount (Loads .arweb into linear RAM, zero-copy section indexing)      │
  │       │                                                                     │
  │       ├─────────────────────────────────┐                                   │
  │       ▼                                 ▼                                   │
- │  arwn_gateway                   arwn_server                                 │
+ │  arwe_gateway                   arwe_server                                 │
  │  (Registers route on            (HTTP Event Loop on port 3055)              │
  │   ARWS gateway:9500)                    │                                   │
  │                                         ▼                                   │
@@ -104,16 +104,16 @@
 ### Constraints & Constants
 
 ```c
-#define ARWN_ARWEB_MAGIC         "ALRIGROUP@ARWEB"
-#define ARWN_ARWEB_VERSION       1
-#define ARWN_ARWEB_MAX_SECTIONS  64
-#define ARWN_ARWEB_NAME_MAX      31
-#define ARWN_PACK_MAX_PAYLOAD    (256 * 1024 * 1024) /* 256 MiB ceiling */
+#define ARWE_ARWEB_MAGIC         "ALRIGROUP@ARWEB"
+#define ARWE_ARWEB_VERSION       1
+#define ARWE_ARWEB_MAX_SECTIONS  64
+#define ARWE_ARWEB_NAME_MAX      31
+#define ARWE_PACK_MAX_PAYLOAD    (256 * 1024 * 1024) /* 256 MiB ceiling */
 ```
 
 ---
 
-## 4. Configuration Reference (config.arwn)
+## 4. Configuration Reference (config.arwe)
 
 The declarative configuration file governing packaging, routing, and compilation.
 
@@ -170,38 +170,38 @@ obfuscate=no
 
 ## 5. Module Reference
 
-### 5.1 Core Application (arwn_core)
+### 5.1 Core Application (arwe_core)
 
-**Files**: `include/arwn.h`, `core/arwn_core.c`
+**Files**: `include/arwe.h`, `core/arwe_core.c`
 
-**Purpose**: App context manager. Allocates and frees `arwn_app_t`, coordinates configuration parsing, builder invocation, and server mounting.
+**Purpose**: App context manager. Allocates and frees `arwe_app_t`, coordinates configuration parsing, builder invocation, and server mounting.
 
 #### Key Functions
 
 | Signature | Description |
 |---|---|
-| `arwn_app_t* arwn_app_new(const char *name)` | Allocate and initialize an ARWN application state |
-| `void arwn_app_free(arwn_app_t *app)` | Clean up all unit memory, parsed configs, and buffers |
-| `int arwn_mount(arwn_app_t *app)` | Build, pack, load `.arweb` into RAM, announce routes, and serve |
+| `arwe_app_t* arwe_app_new(const char *name)` | Allocate and initialize an ARWE application state |
+| `void arwe_app_free(arwe_app_t *app)` | Clean up all unit memory, parsed configs, and buffers |
+| `int arwe_mount(arwe_app_t *app)` | Build, pack, load `.arweb` into RAM, announce routes, and serve |
 
 ---
 
-### 5.2 Builder Engine (arwn_builder)
+### 5.2 Builder Engine (arwe_builder)
 
-**Files**: `core/arwn_builder.h`, `core/arwn_builder.c`
+**Files**: `core/arwe_builder.h`, `core/arwe_builder.c`
 
 **Purpose**: Executes Phase 1 compilation across declared units:
 1. Validates entrypoint naming rules (enforces `main.arhtml`, `main.js`, `main.css`).
 2. Invokes language compilers (e.g., `emcc` or `clang` for WASM micro-units).
-3. Invokes `arwn_obfuscator` for JavaScript when `obfuscate=yes`.
+3. Invokes `arwe_obfuscator` for JavaScript when `obfuscate=yes`.
 4. Injects ALRI Group and developer copyright headers.
-5. Invokes `arwn_pack` to generate `.arweb` output files.
+5. Invokes `arwe_pack` to generate `.arweb` output files.
 
 ---
 
-### 5.3 Container Packer & CRC32 (arwn_pack)
+### 5.3 Container Packer & CRC32 (arwe_pack)
 
-**Files**: `core/arwn_pack.h`, `core/arwn_pack.c`
+**Files**: `core/arwe_pack.h`, `core/arwe_pack.c`
 
 **Purpose**: Low-level binary serialization and zero-copy indexing of `.arweb` files.
 
@@ -209,26 +209,26 @@ obfuscate=no
 
 ```c
 typedef struct {
-    char name[ARWN_ARWEB_NAME_MAX + 1];
+    char name[ARWE_ARWEB_NAME_MAX + 1];
     const void *data;
     uint32_t size;
-} arwn_pack_section_t;
+} arwe_pack_section_t;
 ```
 
 #### Functions
 
 | Signature | Description |
 |---|---|
-| `int arwn_pack_build(const arwn_pack_section_t *sections, int count, uint8_t *out, size_t out_cap, size_t *out_len)` | Serializes sections, computes CRC32, writes container header |
-| `int arwn_pack_validate(const uint8_t *data, size_t len)` | Verifies magic, section offsets, and re-computes CRC32 checksums |
-| `int arwn_pack_index(const uint8_t *data, size_t len, arwn_pack_section_t *views, int views_cap)` | Returns zero-copy slice pointers directly into loaded memory buffer |
-| `uint32_t arwn_crc32(const void *data, size_t len)` | High-speed CRC32 implementation |
+| `int arwe_pack_build(const arwe_pack_section_t *sections, int count, uint8_t *out, size_t out_cap, size_t *out_len)` | Serializes sections, computes CRC32, writes container header |
+| `int arwe_pack_validate(const uint8_t *data, size_t len)` | Verifies magic, section offsets, and re-computes CRC32 checksums |
+| `int arwe_pack_index(const uint8_t *data, size_t len, arwe_pack_section_t *views, int views_cap)` | Returns zero-copy slice pointers directly into loaded memory buffer |
+| `uint32_t arwe_crc32(const void *data, size_t len)` | High-speed CRC32 implementation |
 
 ---
 
-### 5.4 Base64 VM Obfuscator (arwn_obfuscator)
+### 5.4 Base64 VM Obfuscator (arwe_obfuscator)
 
-**Files**: `core/arwn_obfuscator.h`, `core/arwn_obfuscator.c`
+**Files**: `core/arwe_obfuscator.h`, `core/arwe_obfuscator.c`
 
 **Purpose**: Protects intellectual property by transforming source JavaScript into self-executing Base64 bytecode wrappers:
 
@@ -243,9 +243,9 @@ typedef struct {
 
 ---
 
-### 5.5 Embedded HTTP Server (arwn_server & arwn_http)
+### 5.5 Embedded HTTP Server (arwe_server & arwe_http)
 
-**Files**: `core/arwn_server.h`, `core/arwn_server.c`, `core/arwn_http.c`
+**Files**: `core/arwe_server.h`, `core/arwe_server.c`, `core/arwe_http.c`
 
 **Purpose**: Micro-server serving `.arweb` sections from linear memory pointers. Emits optimized headers:
 - `Content-Type`: Automatically derived from section name
@@ -254,9 +254,9 @@ typedef struct {
 
 ---
 
-### 5.6 Gateway Auto-Registration (arwn_gateway)
+### 5.6 Gateway Auto-Registration (arwe_gateway)
 
-**Files**: `core/arwn_gateway.h`, `core/arwn_gateway.c`
+**Files**: `core/arwe_gateway.h`, `core/arwe_gateway.c`
 
 **Purpose**: On boot, opens a non-blocking TCP socket to ARWS port 9500, sending an `IPC_REGISTER` message:
 
@@ -264,25 +264,25 @@ typedef struct {
 IPC_REGISTER <app_name> /* GET <route.host> production proxy=http://127.0.0.1:<port>
 ```
 
-Ensures zero-touch configuration: booting an ARWN app immediately makes it live across the global reverse proxy.
+Ensures zero-touch configuration: booting an ARWE app immediately makes it live across the global reverse proxy.
 
 ---
 
-### 5.7 Declarative Config Parser (arwn_config)
+### 5.7 Declarative Config Parser (arwe_config)
 
-**Files**: `core/arwn_config.h`, `core/arwn_config.c`
+**Files**: `core/arwe_config.h`, `core/arwe_config.c`
 
-**Purpose**: Robust INI/ARWN dialect parser enforcing strict buffer safety limits (`ARWN_CFG_MAX_FILE = 64KB`, `ARWN_CFG_MAX_KEYS = 256`).
+**Purpose**: Robust INI/ARWE dialect parser enforcing strict buffer safety limits (`ARWE_CFG_MAX_FILE = 64KB`, `ARWE_CFG_MAX_KEYS = 256`).
 
 ---
 
 ## 6. WebAssembly (WASM) Integration
 
-ARWN applications can embed WASM micro-engines directly into the container section table. The included runtime bridge `runtime/arwn-bridge.js` exposes two-way communication:
+ARWE applications can embed WASM micro-engines directly into the container section table. The included runtime bridge `runtime/arwe-engine.js` exposes two-way communication:
 
 ```javascript
-// arwn-bridge.js client usage
-const bridge = await ARWN.loadModule('calc.wasm');
+// arwe-engine.js client usage
+const bridge = await ARWE.loadModule('calc.wasm');
 const result = bridge.instance.exports.compute(100000);
 ```
 
@@ -304,23 +304,23 @@ When `obfuscate=yes` is set on a unit:
 
 ---
 
-## 8. CLI Reference (arwn_build)
+## 8. CLI Reference (arwe_build)
 
 ```bash
-# Build .arweb containers from config.arwn in current directory
-arwn_build build
+# Build .arweb containers from config.arwe in current directory
+arwe_build build
 
 # Build to explicit output directory
-arwn_build build -o /tmp/output/
+arwe_build build -o /tmp/output/
 
 # Mount and start serving immediately
-arwn_build mount
+arwe_build mount
 
 # Inspect sections and CRC32 of an existing .arweb file
-arwn_build info build/main.arweb
+arwe_build info build/main.arweb
 
 # Validate binary container integrity
-arwn_build verify build/main.arweb
+arwe_build verify build/main.arweb
 ```
 
 ---
@@ -334,22 +334,22 @@ gcc -O2 \
   -I. -Iinclude -Icore \
   -I../../ALRIOS/arkernel/include \
   -I../../ALRIOS/arkernel/os/include \
-  -o $STAGING/arwn_build \
-  tools/arwn_build.c core/arwn_core.c core/arwn_server.c \
-  core/arwn_http.c core/arwn_gateway.c core/arwn_builder.c \
-  core/arwn_obfuscator.c core/arwn_pack.c core/arwn_config.c \
+  -o $STAGING/arwe_build \
+  tools/arwe_build.c core/arwe_core.c core/arwe_server.c \
+  core/arwe_http.c core/arwe_gateway.c core/arwe_builder.c \
+  core/arwe_obfuscator.c core/arwe_pack.c core/arwe_config.c \
   -L$ARCORE/lib -larkernel -lssl -lcrypto
 ```
 
-### .arapp Manifest (`arwn.arappmake`)
+### .arapp Manifest (`arwe.arappmake`)
 
 ```json
 {
-  "name": "arwn",
+  "name": "arwe",
   "version": "0.2.01",
   "runtime": "native",
-  "entry": "arwn_build",
-  "files": ["arwn_build", "arwn.h"],
+  "entry": "arwe_build",
+  "files": ["arwe_build", "arwe.h"],
   "description": "Runtime Nativo Web e Servidor de Containers .arweb",
   "commands": ["status", "routes", "ping"]
 }
@@ -357,6 +357,6 @@ gcc -O2 \
 
 ---
 
-*Document generated from source code analysis of ARWN v0.2.01.*
+*Document generated from source code analysis of ARWE v0.2.01.*
 *Engineered by ALRI Development. Governed by ALRI GROUP © 2026 — All rights reserved.*
 *License: ARGLP (ALRI GROUP LICENSE PERMISSIVE — Version 2)*

@@ -6,16 +6,16 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-/* Fuzz target do parser config.arwn (libFuzzer). */
+/* Fuzz target do parser config.arwe (libFuzzer). */
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "arwn_config.h"
+#include "arwe_config.h"
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    arwn_cfg_t cfg;
-    if (size > ARWN_CFG_MAX_FILE) size = ARWN_CFG_MAX_FILE;
-    arwn_cfg_parse(&cfg, (const char *)data, size);
+    arwe_cfg_t cfg;
+    if (size > ARWE_CFG_MAX_FILE) size = ARWE_CFG_MAX_FILE;
+    arwe_cfg_parse(&cfg, (const char *)data, size);
     return 0;
 }

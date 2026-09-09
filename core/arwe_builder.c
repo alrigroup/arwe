@@ -6,20 +6,20 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#include "arwn_builder.h"
+#include "arwe_builder.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "arwn_config.h"
-#include "arwn_pack.h"
-#include "arwn_internal.h"
-#include "arwn_bridge_embed.h"
-#include "arwn_obfuscator.h"
+#include "arwe_config.h"
+#include "arwe_pack.h"
+#include "arwe_internal.h"
+#include "arwe_engine_embed.h"
+#include "arwe_obfuscator.h"
 #include "aros_hal.h"
 
-#define ARWN_BUILD_DIR "build"
+#define ARWE_BUILD_DIR "build"
 
 /* ------------------------------------------------------------------ */
 /* Helpers de arquivo/processo (via HAL arkernel)                      */
@@ -70,12 +70,12 @@ static int mkdir_p(const char *path) {
     return 0;
 }
 
-/* Injeta <script src="/arwn-bridge.js"> antes de </head> se ausente.
+/* Injeta <script src="/arwe-engine.js"> antes de </head> se ausente.
    Devolve novo buffer malloc'd e *out_len. NULL em erro. */
 static char *inject_bridge_tag(const char *html, size_t hlen, size_t *out_len) {
-    const char *tag = "<script src=\"/arwn-bridge.js\"></script>\n";
+    const char *tag = "<script src=\"/arwe-engine.js\"></script>\n";
     size_t tlen = strlen(tag);
-    if (strstr(html, "arwn-bridge.js")) {
+    if (strstr(html, "arwe-engine.js")) {
         /* já injetada (idempotente) */
         char *copy = (char *)malloc(hlen + 1);
         if (!copy) return NULL;
@@ -104,7 +104,7 @@ static char *read_file_alloc(const char *path, size_t *out_len) {
     if (!f) return NULL;
     if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }
     long sz = ftell(f);
-    if (sz < 0 || sz > ARWN_PACK_MAX_PAYLOAD) { fclose(f); return NULL; }
+    if (sz < 0 || sz > ARWE_PACK_MAX_PAYLOAD) { fclose(f); return NULL; }
     fseek(f, 0, SEEK_SET);
     char *data = (char *)malloc((size_t)sz + 1);
     if (!data) { fclose(f); return NULL; }
@@ -164,7 +164,7 @@ static void resolve_path(const char *approot, const char *rel, char *out, int ca
 }
 
 /* Junta dois segmentos de path com limite explícito. Retorna 0 ou -1. */
-int arwn_path_join(char *out, int cap, const char *a, const char *b) {
+int arwe_path_join(char *out, int cap, const char *a, const char *b) {
     if (!out || cap <= 0 || !a || !b) return -1;
     size_t alen = strlen(a);
     size_t blen = strlen(b);
@@ -176,7 +176,7 @@ int arwn_path_join(char *out, int cap, const char *a, const char *b) {
 }
 
 /* Monta "<a>/<b><suffix>" com bounds. Retorna 0 ou -1. */
-int arwn_path_join_suffix(char *out, int cap, const char *a, const char *b,
+int arwe_path_join_suffix(char *out, int cap, const char *a, const char *b,
                           const char *suffix) {
     if (!out || cap <= 0 || !a || !b || !suffix) return -1;
     size_t alen = strlen(a);
@@ -195,12 +195,12 @@ int arwn_path_join_suffix(char *out, int cap, const char *a, const char *b,
 /* ------------------------------------------------------------------ */
 
 /* JS/TS → esbuild (bundle + minify) */
-static int build_js_ts(arwn_unit_t *u, const char *approot, const char *tmpdir,
+static int build_js_ts(arwe_unit_t *u, const char *approot, const char *tmpdir,
                        char *err, int err_cap) {
     char src_path[1300];
     resolve_path(approot, u->source, src_path, sizeof(src_path));
     char entry[1300];
-    if (arwn_path_join(entry, sizeof(entry), src_path, u->files[0]) != 0) {
+    if (arwe_path_join(entry, sizeof(entry), src_path, u->files[0]) != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         return -1;
     }
@@ -211,7 +211,7 @@ static int build_js_ts(arwn_unit_t *u, const char *approot, const char *tmpdir,
     }
 
     char out[1300];
-    if (arwn_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".bundle.js") != 0) {
+    if (arwe_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".bundle.js") != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         return -1;
     }
@@ -246,10 +246,10 @@ static int build_js_ts(arwn_unit_t *u, const char *approot, const char *tmpdir,
 }
 
 /* C/C++ → emcc/em++ (uma entrada por execução; várias langs agrupadas) */
-static int build_c_cpp(arwn_unit_t *u, const char *approot, const char *tmpdir,
+static int build_c_cpp(arwe_unit_t *u, const char *approot, const char *tmpdir,
                        char *err, int err_cap) {
     char out[1300];
-    if (arwn_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".wasm") != 0) {
+    if (arwe_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".wasm") != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         return -1;
     }
@@ -260,7 +260,7 @@ static int build_c_cpp(arwn_unit_t *u, const char *approot, const char *tmpdir,
     /* Se arquivo .wasm direto fornecido, copia diretamente */
     for (int i = 0; i < u->file_count; i++) {
         char p[1300];
-        if (arwn_path_join(p, sizeof(p), src_path, u->files[i]) == 0 && file_exists(p)) {
+        if (arwe_path_join(p, sizeof(p), src_path, u->files[i]) == 0 && file_exists(p)) {
             size_t plen = strlen(p);
             if (plen > 5 && strcmp(p + plen - 5, ".wasm") == 0) {
                 size_t flen = 0;
@@ -292,10 +292,10 @@ static int build_c_cpp(arwn_unit_t *u, const char *approot, const char *tmpdir,
     argv[ai++] = (char *)"-s";
     argv[ai++] = (char *)"WASM=1";
     argv[ai++] = (char *)"-s";
-    argv[ai++] = (char *)"EXPORTED_FUNCTIONS=_arwn_main,_malloc,_free";
+    argv[ai++] = (char *)"EXPORTED_FUNCTIONS=_arwe_main,_malloc,_free";
     for (int i = 0; i < u->file_count && ai < 44; i++) {
         char p[1300];
-        if (arwn_path_join(p, sizeof(p), src_path, u->files[i]) == 0 && file_exists(p))
+        if (arwe_path_join(p, sizeof(p), src_path, u->files[i]) == 0 && file_exists(p))
             argv[ai++] = strdup(p);
     }
     if (ai <= 6) {
@@ -312,10 +312,10 @@ static int build_c_cpp(arwn_unit_t *u, const char *approot, const char *tmpdir,
 }
 
 /* Go → GOOS=js GOARCH=wasm (go -C <dir> build -o out.wasm .) */
-static int build_go(arwn_unit_t *u, const char *approot, const char *tmpdir,
+static int build_go(arwe_unit_t *u, const char *approot, const char *tmpdir,
                     char *err, int err_cap) {
     char out[1300];
-    if (arwn_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".wasm") != 0) {
+    if (arwe_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".wasm") != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         return -1;
     }
@@ -326,7 +326,7 @@ static int build_go(arwn_unit_t *u, const char *approot, const char *tmpdir,
     /* Se arquivo .wasm direto fornecido, copia diretamente */
     for (int i = 0; i < u->file_count; i++) {
         char p[1300];
-        if (arwn_path_join(p, sizeof(p), src_dir, u->files[i]) == 0 && file_exists(p)) {
+        if (arwe_path_join(p, sizeof(p), src_dir, u->files[i]) == 0 && file_exists(p)) {
             size_t plen = strlen(p);
             if (plen > 5 && strcmp(p + plen - 5, ".wasm") == 0) {
                 size_t flen = 0;
@@ -368,7 +368,7 @@ static int build_go(arwn_unit_t *u, const char *approot, const char *tmpdir,
 }
 
 /* Vite (React/Vue/Angular) → vite build */
-static int build_vite(arwn_unit_t *u, const char *approot, const char *tmpdir,
+static int build_vite(arwe_unit_t *u, const char *approot, const char *tmpdir,
                       char *err, int err_cap) {
     (void)tmpdir;
     if (!tool_find("vite") && !tool_find("npx")) {
@@ -388,10 +388,10 @@ static int build_vite(arwn_unit_t *u, const char *approot, const char *tmpdir,
 }
 
 /* Rust → wasm-pack */
-static int build_rust(arwn_unit_t *u, const char *approot, const char *tmpdir,
+static int build_rust(arwe_unit_t *u, const char *approot, const char *tmpdir,
                       char *err, int err_cap) {
     char out[1300];
-    if (arwn_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".wasm") != 0) {
+    if (arwe_path_join_suffix(out, sizeof(out), tmpdir, u->name, ".wasm") != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         return -1;
     }
@@ -402,7 +402,7 @@ static int build_rust(arwn_unit_t *u, const char *approot, const char *tmpdir,
     /* Se arquivo .wasm direto fornecido, copia diretamente */
     for (int i = 0; i < u->file_count; i++) {
         char p[1300];
-        if (arwn_path_join(p, sizeof(p), src_dir, u->files[i]) == 0 && file_exists(p)) {
+        if (arwe_path_join(p, sizeof(p), src_dir, u->files[i]) == 0 && file_exists(p)) {
             size_t plen = strlen(p);
             if (plen > 5 && strcmp(p + plen - 5, ".wasm") == 0) {
                 size_t flen = 0;
@@ -429,21 +429,21 @@ static int build_rust(arwn_unit_t *u, const char *approot, const char *tmpdir,
 /* Montagem do .arweb                                                  */
 /* ------------------------------------------------------------------ */
 
-static int assemble_arweb(arwn_unit_t *u, const char *approot,
+static int assemble_arweb(arwe_unit_t *u, const char *approot,
                           const char *build_dir, char *err, int err_cap) {
-    arwn_pack_section_t sections[ARWN_ARWEB_MAX_SECTIONS];
+    arwe_pack_section_t sections[ARWE_ARWEB_MAX_SECTIONS];
     int sc = 0;
 
     char tmpdir[1300];
-    if (arwn_path_join(tmpdir, sizeof(tmpdir), build_dir, u->name) != 0) {
+    if (arwe_path_join(tmpdir, sizeof(tmpdir), build_dir, u->name) != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         return -1;
     }
     mkdir_p(tmpdir);
 
-#define ARWN_ADD_SECTION(_name, _data, _size)                                  \
+#define ARWE_ADD_SECTION(_name, _data, _size)                                  \
     do {                                                                       \
-        if ((_data) && sc < ARWN_ARWEB_MAX_SECTIONS) {                         \
+        if ((_data) && sc < ARWE_ARWEB_MAX_SECTIONS) {                         \
             snprintf(sections[sc].name, sizeof(sections[sc].name), "%s", _name); \
             sections[sc].data = (_data);                                       \
             sections[sc].size = (uint32_t)(_size);                             \
@@ -451,13 +451,13 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
         }                                                                      \
     } while (0)
 
-    /* config.arwn embutido apenas em dev (se não ofuscado) */
+    /* config.arwe embutido apenas em dev (se não ofuscado) */
     if (!u->obfuscate) {
         char cfg_path[1300];
-        resolve_path(approot, "config.arwn", cfg_path, sizeof(cfg_path));
+        resolve_path(approot, "config.arwe", cfg_path, sizeof(cfg_path));
         size_t clen = 0;
         char *cfg = read_file_alloc(cfg_path, &clen);
-        ARWN_ADD_SECTION("config.arwn", cfg, clen);
+        ARWE_ADD_SECTION("config.arwe", cfg, clen);
     }
 
     /* app.html: o .arhtml principal da unit (+ bridge injetada, F3) */
@@ -465,7 +465,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
         char html_dir[1300];
         resolve_path(approot, u->source, html_dir, sizeof(html_dir));
         char html_path[1300];
-        if (arwn_path_join(html_path, sizeof(html_path), html_dir, u->entry) == 0 && file_exists(html_path)) {
+        if (arwe_path_join(html_path, sizeof(html_path), html_dir, u->entry) == 0 && file_exists(html_path)) {
             size_t hlen = 0;
             char *html = read_file_alloc(html_path, &hlen);
             if (html) {
@@ -475,7 +475,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
                 if (html2) {
                     html = html2;
                     hlen = hlen2;
-                    ARWN_ADD_SECTION("app.html", html, hlen);
+                    ARWE_ADD_SECTION("app.html", html, hlen);
                 }
             }
         }
@@ -484,13 +484,13 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
         char css_path[1300];
         char unit_css_name[128];
         snprintf(unit_css_name, sizeof(unit_css_name), "%s.css", u->name);
-        if ((arwn_path_join(css_path, sizeof(css_path), html_dir, unit_css_name) == 0 && file_exists(css_path)) ||
-            (arwn_path_join(css_path, sizeof(css_path), html_dir, "main.css") == 0 && file_exists(css_path)) ||
-            (arwn_path_join(css_path, sizeof(css_path), html_dir, "style.css") == 0 && file_exists(css_path))) {
+        if ((arwe_path_join(css_path, sizeof(css_path), html_dir, unit_css_name) == 0 && file_exists(css_path)) ||
+            (arwe_path_join(css_path, sizeof(css_path), html_dir, "main.css") == 0 && file_exists(css_path)) ||
+            (arwe_path_join(css_path, sizeof(css_path), html_dir, "style.css") == 0 && file_exists(css_path))) {
             size_t clen = 0;
             char *css = read_file_alloc(css_path, &clen);
             if (css) {
-                ARWN_ADD_SECTION("main.css", css, clen);
+                ARWE_ADD_SECTION("main.css", css, clen);
             }
         }
 
@@ -499,14 +499,14 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
         for (int si = 0; seo_files[si] != NULL; si++) {
             char fpath[1300];
             /* Primeiro tenta dentro de source (ex: web/dist/robots.txt ou web/public/robots.txt) */
-            if (arwn_path_join(fpath, sizeof(fpath), html_dir, seo_files[si]) != 0 || !file_exists(fpath)) {
+            if (arwe_path_join(fpath, sizeof(fpath), html_dir, seo_files[si]) != 0 || !file_exists(fpath)) {
                 /* Depois tenta na raiz do app (ex: robots.txt) */
                 resolve_path(approot, seo_files[si], fpath, sizeof(fpath));
                 if (!file_exists(fpath)) {
                     /* Tenta dentro de web/public/ */
                     char pub_dir[1300];
                     resolve_path(approot, "web/public", pub_dir, sizeof(pub_dir));
-                    if (arwn_path_join(fpath, sizeof(fpath), pub_dir, seo_files[si]) != 0 || !file_exists(fpath)) {
+                    if (arwe_path_join(fpath, sizeof(fpath), pub_dir, seo_files[si]) != 0 || !file_exists(fpath)) {
                         continue;
                     }
                 }
@@ -514,21 +514,21 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
             size_t flen = 0;
             char *fdata = read_file_alloc(fpath, &flen);
             if (fdata) {
-                ARWN_ADD_SECTION(seo_files[si], fdata, flen);
+                ARWE_ADD_SECTION(seo_files[si], fdata, flen);
             }
         }
     }
 
-    /* arwn-bridge.js (F3): embutido no .arweb para servir com hash estável */
+    /* arwe-engine.js (F3): embutido no .arweb para servir com hash estável */
     {
-        size_t blen = arwn_bridge_js_len;
+        size_t blen = arwe_engine_js_len;
         char *bridge = (char *)malloc(blen ? blen + 1 : 1);
         if (!bridge) return -1;
-        memcpy(bridge, arwn_bridge_js, blen);
+        memcpy(bridge, arwe_engine_js, blen);
         bridge[blen] = '\0';
         if (u->obfuscate) {
             size_t obf_len = 0;
-            char *obf_bridge = arwn_obfuscate_js(bridge, blen, u->copyright, &obf_len);
+            char *obf_bridge = arwe_obfuscate_js(bridge, blen, u->copyright, &obf_len);
             if (obf_bridge) {
                 free(bridge);
                 bridge = obf_bridge;
@@ -536,7 +536,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
             }
         } else {
             char hdr[4096];
-            size_t hlen = arwn_format_copyright(hdr, sizeof(hdr), u->copyright);
+            size_t hlen = arwe_format_copyright(hdr, sizeof(hdr), u->copyright);
             char *combined = (char *)malloc(hlen + blen + 1);
             if (combined) {
                 memcpy(combined, hdr, hlen);
@@ -547,13 +547,13 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
                 blen = hlen + blen;
             }
         }
-        ARWN_ADD_SECTION("arwn-bridge.js", bridge, blen);
+        ARWE_ADD_SECTION("arwe-engine.js", bridge, blen);
     }
 
     /* mod - o artefato wasm compilado */
     {
         char wasm_path[1300];
-        if (arwn_path_join_suffix(wasm_path, sizeof(wasm_path), build_dir, u->name, ".wasm") != 0) {
+        if (arwe_path_join_suffix(wasm_path, sizeof(wasm_path), build_dir, u->name, ".wasm") != 0) {
             snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
             return -1;
         }
@@ -561,17 +561,17 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
         char *wasm = read_file_alloc(wasm_path, &wlen);
         if (wasm && u->obfuscate) {
             size_t new_wlen = wlen;
-            if (arwn_obfuscate_wasm((uint8_t *)wasm, wlen, &new_wlen) == 0) {
+            if (arwe_obfuscate_wasm((uint8_t *)wasm, wlen, &new_wlen) == 0) {
                 wlen = new_wlen;
             }
         }
-        ARWN_ADD_SECTION("mod/main.wasm", wasm, wlen);
+        ARWE_ADD_SECTION("mod/main.wasm", wasm, wlen);
     }
 
     /* bundle.js (esbuild/vite output) */
     {
         char js_path[1300];
-        if (arwn_path_join_suffix(js_path, sizeof(js_path), build_dir, u->name, ".bundle.js") != 0) {
+        if (arwe_path_join_suffix(js_path, sizeof(js_path), build_dir, u->name, ".bundle.js") != 0) {
             snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
             return -1;
         }
@@ -580,7 +580,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
         if (js) {
             if (u->obfuscate) {
                 size_t obf_len = 0;
-                char *obf_js = arwn_obfuscate_js(js, jlen, u->copyright, &obf_len);
+                char *obf_js = arwe_obfuscate_js(js, jlen, u->copyright, &obf_len);
                 if (obf_js) {
                     free(js);
                     js = obf_js;
@@ -588,7 +588,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
                 }
             } else {
                 char hdr[4096];
-                size_t hlen = arwn_format_copyright(hdr, sizeof(hdr), u->copyright);
+                size_t hlen = arwe_format_copyright(hdr, sizeof(hdr), u->copyright);
                 char *combined = (char *)malloc(hlen + jlen + 1);
                 if (combined) {
                     memcpy(combined, hdr, hlen);
@@ -600,10 +600,10 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
                 }
             }
         }
-        ARWN_ADD_SECTION("bundle.js", js, jlen);
+        ARWE_ADD_SECTION("bundle.js", js, jlen);
     }
 
-#undef ARWN_ADD_SECTION
+#undef ARWE_ADD_SECTION
 
     if (sc < 2) {
         snprintf(err, (size_t)err_cap, "unit %s: no artifacts to pack", u->name);
@@ -611,19 +611,19 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
     }
 
     /* serializa em memória */
-    uint8_t *packed = (uint8_t *)malloc(ARWN_PACK_MAX_PAYLOAD);
+    uint8_t *packed = (uint8_t *)malloc(ARWE_PACK_MAX_PAYLOAD);
     if (!packed) return -1;
     size_t plen = 0;
-    int rc = arwn_pack_build(sections, sc, packed, ARWN_PACK_MAX_PAYLOAD, &plen);
+    int rc = arwe_pack_build(sections, sc, packed, ARWE_PACK_MAX_PAYLOAD, &plen);
     if (rc != 0) {
-        snprintf(err, (size_t)err_cap, "unit %s: arwn_pack_build failed", u->name);
+        snprintf(err, (size_t)err_cap, "unit %s: arwe_pack_build failed", u->name);
         free(packed);
         for (int i = 0; i < sc; i++) free((void *)sections[i].data);
         return -1;
     }
 
     /* valida (auto-teste) */
-    if (arwn_pack_validate(packed, plen) != 0) {
+    if (arwe_pack_validate(packed, plen) != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: pack self-check failed", u->name);
         free(packed);
         for (int i = 0; i < sc; i++) free((void *)sections[i].data);
@@ -632,7 +632,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
 
     /* grava <build>/<unit>.arweb */
     char out_path[1300];
-    if (arwn_path_join_suffix(out_path, sizeof(out_path), build_dir, u->name, ".arweb") != 0) {
+    if (arwe_path_join_suffix(out_path, sizeof(out_path), build_dir, u->name, ".arweb") != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: path too long", u->name);
         free(packed);
         for (int i = 0; i < sc; i++) free((void *)sections[i].data);
@@ -642,7 +642,7 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
     if (rc != 0) {
         snprintf(err, (size_t)err_cap, "unit %s: cannot write .arweb", u->name);
     } else {
-        printf("[arwn] packed %s (%zu bytes, %d sections, CRC ok)\n",
+        printf("[arwe] packed %s (%zu bytes, %d sections, CRC ok)\n",
                out_path, plen, sc);
     }
 
@@ -655,20 +655,20 @@ static int assemble_arweb(arwn_unit_t *u, const char *approot,
 /* Execução principal                                                   */
 /* ------------------------------------------------------------------ */
 
-int arwn_builder_execute_out(arwn_app_t *app, const char *out_dir) {
+int arwe_builder_execute_out(arwe_app_t *app, const char *out_dir) {
     if (!app) return -1;
 
     char build_dir[1300];
     if (out_dir && out_dir[0] != '\0') {
         snprintf(build_dir, sizeof(build_dir), "%s", out_dir);
     } else {
-        resolve_path(app->root, ARWN_BUILD_DIR, build_dir, sizeof(build_dir));
+        resolve_path(app->root, ARWE_BUILD_DIR, build_dir, sizeof(build_dir));
     }
     mkdir_p(build_dir);
 
     int failures = 0;
     for (int i = 0; i < app->unit_count; i++) {
-        arwn_unit_t *u = &app->units[i];
+        arwe_unit_t *u = &app->units[i];
         char err[256];
         int compiled = 0;
 
@@ -689,7 +689,7 @@ int arwn_builder_execute_out(arwn_app_t *app, const char *out_dir) {
                 rc = -1;
             }
             if (rc != 0) {
-                printf("[arwn] unit %s (%s): BUILD FAILED: %s\n", u->name, u->langs[l], err);
+                printf("[arwe] unit %s (%s): BUILD FAILED: %s\n", u->name, u->langs[l], err);
                 failures++;
                 break;
             }
@@ -698,7 +698,7 @@ int arwn_builder_execute_out(arwn_app_t *app, const char *out_dir) {
 
         if (compiled > 0) {
             if (assemble_arweb(u, app->root, build_dir, err, sizeof(err)) != 0) {
-                printf("[arwn] unit %s: PACK FAILED: %s\n", u->name, err);
+                printf("[arwe] unit %s: PACK FAILED: %s\n", u->name, err);
                 failures++;
             }
         }
@@ -707,6 +707,6 @@ int arwn_builder_execute_out(arwn_app_t *app, const char *out_dir) {
     return failures == 0 ? 0 : -1;
 }
 
-int arwn_builder_execute(arwn_app_t *app) {
-    return arwn_builder_execute_out(app, NULL);
+int arwe_builder_execute(arwe_app_t *app) {
+    return arwe_builder_execute_out(app, NULL);
 }

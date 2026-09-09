@@ -1,5 +1,5 @@
 /**
- * ARWN (Alri Real-Time Web Node) Bridge TypeScript Definitions
+ * ARWE (ALRI Web Engine) Bridge TypeScript Definitions
  * (C) ALRIGROUP — ARGLR license.
  */
 
@@ -34,9 +34,9 @@ export interface AwrnBridge {
 
 declare global {
   interface Window {
-    ARWN: AwrnBridge;
+    ARWE: AwrnBridge;
   }
-  const ARWN: AwrnBridge;
+  const ARWE: AwrnBridge;
 }
 
-export default ARWN;
+export default ARWE;

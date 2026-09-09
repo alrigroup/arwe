@@ -6,11 +6,11 @@
  * and at: https://github.com/alrigroup/licenses/tree/main
  */
 
-#ifndef ARWN_GATEWAY_H
-#define ARWN_GATEWAY_H
+#ifndef ARWE_GATEWAY_H
+#define ARWE_GATEWAY_H
 
-#include "arwn.h"
-#include "arwn_server.h"
+#include "arwe.h"
+#include "arwe_server.h"
 
 /* Conector ARWS (Fase 2): registra as rotas do app via IPC 9500 (frame
  * 5-byte existente), mantém canal de controle com heartbeat + query
@@ -19,9 +19,9 @@
 
 /* Inicia a thread de registro/controle. Retorna 0 se a thread subiu
    (a reconexão é interna). `server` é usado para responder "routes". */
-int arwn_gateway_start(arwn_app_t *app, arwn_server_t *server);
+int arwe_gateway_start(arwe_app_t *app, arwe_server_t *server);
 
 /* Server corrente para o thread do gateway (por processo). */
-arwn_server_t *arwn_server_for_gateway(void);
+arwe_server_t *arwe_server_for_gateway(void);
 
-#endif /* ARWN_GATEWAY_H */
+#endif /* ARWE_GATEWAY_H */
