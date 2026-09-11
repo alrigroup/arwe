@@ -2,7 +2,7 @@
 
 *ALRI Web Engine — Zero-Disk Container Runtime & WASM Engine*
 
-*Version: 0.2.01 | Engineered by ALRI Development | Governed by ALRI GROUP © 2026 | License: ARGLP*
+*Version: 0.2.02 | Engineered by ALRI Development | Governed by ALRI GROUP © 2026 | License: ARGLP*
 
 ---
 
@@ -346,7 +346,7 @@ gcc -O2 \
 ```json
 {
   "name": "arwe",
-  "version": "0.2.01",
+  "version": "0.2.02",
   "runtime": "native",
   "entry": "arwe_build",
   "files": ["arwe_build", "arwe.h"],
@@ -357,6 +357,6 @@ gcc -O2 \
 
 ---
 
-*Document generated from source code analysis of ARWE v0.2.01.*
+*Document generated from source code analysis of ARWE v0.2.02.*
 *Engineered by ALRI Development. Governed by ALRI GROUP © 2026 — All rights reserved.*
 *License: ARGLP (ALRI GROUP LICENSE PERMISSIVE — Version 2)*

@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-#define ARWE_VERSION "0.2.0"
+#define ARWE_VERSION "0.2.02"
 
 /* Limites rígidos de segurança do parser/contêiner (anti-bomba). */
 #define ARWE_CFG_MAX_FILE        (64 * 1024)
